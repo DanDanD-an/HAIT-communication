@@ -32,10 +32,11 @@ def connect_sheets():
     survey_ws       = spreadsheet.worksheet("survey")
     conversation_ws = spreadsheet.worksheet("conversation")
     proposal_ws     = spreadsheet.worksheet("proposal")
+    consent_ws      = spreadsheet.worksheet("consent")
 
-    return survey_ws, conversation_ws, proposal_ws
+    return survey_ws, conversation_ws, proposal_ws, consent_ws
 
-survey_ws, conversation_ws, proposal_ws = connect_sheets()
+survey_ws, conversation_ws, proposal_ws, consent_ws = connect_sheets()
 
 # ─────────────────────────────────────────
 # 2. 헤더 자동 삽입
@@ -75,6 +76,10 @@ insert_headers_if_empty(conversation_ws, [
 insert_headers_if_empty(proposal_ws, [
     "timestamp", "user_id", "condition", "role",
     "gdocs_link", "proposal_text"
+])
+
+insert_headers_if_empty(consent_ws, [
+    "consent_timestamp", "user_id", "agreement"
 ])
 
 # ─────────────────────────────────────────
@@ -204,40 +209,91 @@ def go(phase):
     st.session_state.phase = phase
     st.rerun()
 
+def assign_role_balanced():
+    """survey 시트에서 기획자/개발자 수를 세고 적은 쪽 배정. 동수면 랜덤."""
+    try:
+        records = survey_ws.get_all_values()
+        if len(records) <= 1:
+            return random.choice(["기획자", "개발자"])
+
+        header = records[0]
+        if "role" not in header:
+            return random.choice(["기획자", "개발자"])
+
+        role_idx = header.index("role")
+        roles = [row[role_idx] for row in records[1:] if len(row) > role_idx]
+
+        count_p = roles.count("기획자")
+        count_d = roles.count("개발자")
+
+        if count_p < count_d:
+            return "기획자"
+        elif count_d < count_p:
+            return "개발자"
+        else:
+            return random.choice(["기획자", "개발자"])
+
+    except Exception:
+        return random.choice(["기획자", "개발자"])
+
 # ─────────────────────────────────────────
 # 7. 동의서 화면
 # ─────────────────────────────────────────
 if st.session_state.phase == "consent":
 
-    st.title("협업 과제 실험 참여 동의서")
+    st.title("(온라인) 연구참여 동의서")
+
     st.markdown("""
-**연구 제목**: Human–AI Teaming에서의 협업 커뮤니케이션 연구  
-**IRB 승인**: KUIRB-2026-0079-01 (고려대학교)  
-**연구자**: 노단 (고려대학교 미디어학과 박사과정)
+■ **연구과제명**: 인간–AI 협업과 인간–인간 협업에서의 커뮤니케이션 특성 비교 연구
 
----
-
-**연구 개요**  
-본 연구는 인간–AI 협업 과정에서 나타나는 커뮤니케이션 특성을 실험적으로 분석합니다.
-참여자는 AI 파트너와 함께 모바일 앱 기획 과제를 수행하게 됩니다.
-
-**참여 내용**  
-- 역할 카드 확인 → AI 파트너와 30분 텍스트 채팅 협업 → 기획안 제출 → 사후 설문 (~10분)
-- 총 소요 시간: 약 40분
-
-**보상**  
-- 과제 완료 시 참여 보상 10,000원 지급  
-- 우수 팀(5팀) 추가 보상 20,000원
-
-**개인정보 보호**  
-- 모든 데이터는 익명 처리되며 연구 목적 외 사용되지 않습니다.  
-- 참여 도중 언제든지 철회할 수 있습니다.
+■ **IRB 승인번호**: KUIRB-2026-0079-01
 """)
 
     st.divider()
-    agreed = st.checkbox("위 내용을 읽고 이해하였으며, 자발적으로 연구 참여에 동의합니다.")
 
-    if st.button("다음 →", disabled=not agreed):
+    st.markdown("""
+**1.** 본인은 연구참여 설명서를 읽었고, 내용을 충분히 이해하였습니다.
+
+**2.** 본인은 연구 목적을 위해 자발적으로 연구에 참여합니다.
+
+**3.** 본인은 원하지 않을 경우 언제든지 연구 참여를 거절할 수 있으며, 이에 따른 어떠한 불이익도 본인에게 없음을 알고 있습니다.
+
+**4.** 본 연구의 연구진행의 윤리적 측면이나 연구대상자의 권리에 대해 질문이 있는 경우 연락할 수 있는 담당자와 연락처를 알고 있습니다.
+
+> ☞ 본 연구의 책임자는 아래와 같습니다.
+> - **주소**: 서울특별시 성북구 안암로 145 고려대학교 미디어관 404호
+> - **연구책임자**: 고려대학교 백현미 교수
+> - **(연구실 유선)전화번호**: 02-3290-2254
+> - **전자우편**: lotus1225@korea.ac.kr
+
+**5.** 본인은 연구에 자발적으로 참여하는 것에 동의합니다.
+""")
+
+    st.divider()
+
+    agree = st.radio(
+        "연구참여 동의 여부를 선택해 주세요.",
+        ["□ 연구참여에 동의합니다.", "□ 연구참여에 동의하지 않습니다."],
+        index=None
+    )
+
+    if st.button("다음 →", disabled=(agree is None)):
+        consent_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        if agree == "□ 연구참여에 동의하지 않습니다.":
+            consent_ws.append_row([
+                consent_timestamp,
+                st.session_state.user_id,
+                "비동의"
+            ], value_input_option="USER_ENTERED")
+            st.warning("연구 참여에 동의하지 않으셨습니다. 참여해 주셔서 감사합니다.")
+            st.stop()
+
+        consent_ws.append_row([
+            consent_timestamp,
+            st.session_state.user_id,
+            "동의"
+        ], value_input_option="USER_ENTERED")
         go("screening")
 
 # ─────────────────────────────────────────
@@ -259,12 +315,22 @@ elif st.session_state.phase == "screening":
             go("role_assign")
 
 # ─────────────────────────────────────────
-# 9. 역할 무작위 배정
+# 9. 역할 배정 (URL 파라미터 방식)
 # ─────────────────────────────────────────
 elif st.session_state.phase == "role_assign":
 
     if st.session_state.role is None:
-        st.session_state.role = random.choice(["기획자", "개발자"])
+        # URL 파라미터에서 역할 읽기
+        # 예: https://yourapp.streamlit.app/?role=기획자
+        params = st.query_params
+        url_role = params.get("role", "")
+
+        if url_role in ["기획자", "개발자"]:
+            st.session_state.role = url_role
+        else:
+            # 파라미터 없거나 잘못된 값이면 오류 안내
+            st.error("❌ 올바른 링크로 접속해 주세요. 연구자에게 문의하세요.")
+            st.stop()
 
     role = st.session_state.role
     st.title("역할 배정 결과")
@@ -558,8 +624,8 @@ elif st.session_state.phase == "done":
 **참여자 ID**: `{st.session_state.user_id}`  
 (보상 지급 확인 시 사용될 수 있습니다.)
 
-참여 보상(10,000원)은 카카오톡을 통해 지급해드릴 예정입니다. 
+참여 보상(10,000원)은 연구팀에서 별도 안내드릴 예정입니다.  
 문의사항은 아래 이메일로 연락해 주세요.
 
-📧 연구자: 노단 (고려대학교 미디어학과) dandandan1002@gmail.com
+📧 연구자: 노단 (고려대학교 미디어학과)
 """)
