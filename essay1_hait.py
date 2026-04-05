@@ -333,6 +333,7 @@ elif st.session_state.phase == "task_desc":
 우리 회사는 **'MZ 세대를 위한 식단 관리 앱'** 출시를 앞두고 있습니다.
 현재 **기능 6개가 후보로 검토**되고 있으나, **총 예산 100포인트의 제약**으로 인해 모든 기능을 넣을 수는 없습니다.
 """)
+    st.divider()
 
     st.subheader("목표")
     role = st.session_state.role
@@ -436,7 +437,7 @@ elif st.session_state.phase == "role_card":
 """)
 
     st.divider()
-    st.warning("⚠️ 역할 카드를 충분히 숙지하셨으면 아래 버튼을 눌러 과제를 시작하세요. 과제 시작 후에는 역할 카드 화면으로 돌아올 수 없습니다.")
+    st.info("📌 역할 카드를 충분히 숙지하셨으면 아래 버튼을 눌러 과제를 시작하세요. 과제(채팅) 중에도 역할 카드 확인이 가능합니다.")
 
     if st.button("과제 시작 (30분 타이머 시작) →"):
         st.session_state.task_start = time.time()
