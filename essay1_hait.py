@@ -582,7 +582,7 @@ elif st.session_state.phase == "role_card":
 elif st.session_state.phase == "task":
 
     # 10초마다 자동 리렌더링 → 타이머 실시간 갱신
-    st_autorefresh(interval=5_000, key="task_autorefresh")
+    st_autorefresh(interval=10_000, key="task_autorefresh")
 
     role = st.session_state.role
     ai_role = AI_ROLE_LABEL[role]
@@ -601,6 +601,23 @@ elif st.session_state.phase == "task":
 
     with st.expander("📋 내 역할 카드 확인하기"):
         if role == "기획자":
+            st.markdown(f"""
+    당신은 **기획 담당자**로서 사용자의 입장에서 가장 매력적인 앱을 만들어야 합니다.
+    **당신에게만 제공되는 기획자 전용 정보**를 바탕으로 {ai_role}와 협상하여 역할 목표를 달성하세요.
+    """)
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.subheader("역할 목표")
+            st.markdown("""
+    - 시장 경쟁력과 사용자 만족도를 극대화하는 앱 기획
+    - **주어진 팀 예산(100포인트) 준수**
+    """)
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.subheader("정보 공유 규칙")
+            st.markdown("""
+    - 기능별 기본 설명과 예산은 모든 참가자에게 동일하게 제공됩니다.
+    - **아래의 기획자 전용 정보는 대화를 통해 요약하여 공유할 수 있으나, 표·이미지·문장 그대로의 복사·붙여넣기는 허용되지 않습니다.**
+    """)
+            st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("""
 | ID | 기능명 | 설명 | 기획자 전용 정보 | 예산 |
 |:---:|:---|:---|:---|:---:|
@@ -612,6 +629,23 @@ elif st.session_state.phase == "task":
 | F | **유전자 데이터 연동** | 외부 기관과 연동해 체질별 맞춤형 식단 추천 | 최신 트렌드이지만, 개인정보 제공에 대한 거부감을 표시한 응답자가 약 35%로 나타나 초기 확산이 제한될 수 있습니다. | 50p |
 """)
         else:
+            st.markdown(f"""
+    당신은 **개발 책임자**로서 한정된 예산 내에서 안정적으로 작동하는 앱을 설계해야 합니다.
+    **당신에게만 제공되는 개발자 전용 정보**를 바탕으로 {ai_role}와 협상하여 역할 목표를 달성하세요.
+    """)
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.subheader("역할 목표")
+            st.markdown("""
+    - 기술적으로 안정적이고 구현 가능한 앱 설계
+    - **주어진 팀 예산(100포인트) 준수**
+    """)
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.subheader("정보 공유 규칙")
+            st.markdown("""
+    - 기능별 기본 설명과 예산은 모든 참가자에게 동일하게 제공됩니다.
+    - **아래의 개발자 전용 정보는 대화를 통해 요약하여 공유할 수 있으나, 표·이미지·문장 그대로의 복사·붙여넣기는 허용되지 않습니다.**
+    """)
+            st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("""
 | ID | 기능명 | 설명 | 개발자 전용 정보 | 예산 |
 |:---:|:---|:---|:---|:---:|
@@ -778,35 +812,35 @@ elif st.session_state.phase == "survey":
     st.subheader("2. 파트너 신뢰")
     st.caption("다음 문항은 협업 과제에서 경험한 AI 파트너에 대한 신뢰를 묻는 문항입니다.")
 
-    st.markdown("**2-1. 지각된 신뢰성 (Perceived Reliability)**")
+    st.markdown("<br>", unsafe_allow_html=True)
     trust_R1 = st.radio("**AI 파트너는 내가 의사결정을 내리는 데 필요한 의견을 제공했다.**", scale5, index=None, key="trust_R1")
     trust_R2 = st.radio("**AI 파트너는 믿을 수 있는 수준으로 역할을 수행했다.**", scale5, index=None, key="trust_R2")
     trust_R3 = st.radio("**AI 파트너는 동일한 상황에서 일관된 방식으로 반응했다.**", scale5, index=None, key="trust_R3")
     trust_R4 = st.radio("**나는 AI 파트너가 제 역할을 제대로 해낼 것이라고 믿었다.**", scale5, index=None, key="trust_R4")
     trust_R5 = st.radio("**AI 파트너는 문제를 일관된 방식으로 분석했다.**", scale5, index=None, key="trust_R5")
 
-    st.markdown("**2-2. 지각된 기술적 역량 (Perceived Technical Competence)**")
+    st.markdown("<br>", unsafe_allow_html=True)
     trust_T1 = st.radio("**AI 파트너는 의사결정에 있어 적절한 방법을 사용했다.**", scale5, index=None, key="trust_T1")
     trust_T2 = st.radio("**AI 파트너는 이 유형의 과제에 대해 충분한 지식을 갖추고 있었다.**", scale5, index=None, key="trust_T2")
     trust_T3 = st.radio("**AI 파트너가 제시하는 의견은 매우 유능한 사람이 제시하는 것만큼 훌륭했다.**", scale5, index=None, key="trust_T3")
     trust_T4 = st.radio("**AI 파트너는 내가 제공한 정보를 정확하게 활용했다.**", scale5, index=None, key="trust_T4")
     trust_T5 = st.radio("**AI 파트너는 가용한 모든 지식과 정보를 활용하여 해결책을 제시했다.**", scale5, index=None, key="trust_T5")
 
-    st.markdown("**2-3. 지각된 이해가능성 (Perceived Understandability)**")
+    st.markdown("<br>", unsafe_allow_html=True)
     trust_U1 = st.radio("**나는 AI 파트너가 어떻게 행동하는지 이해하기 때문에, 다음에 어떻게 반응할지 예측할 수 있었다.**", scale5, index=None, key="trust_U1")
     trust_U2 = st.radio("**나는 AI 파트너가 내 의사결정 과정에서 어떻게 도움을 줄지 이해하고 있었다.**", scale5, index=None, key="trust_U2")
     trust_U3 = st.radio("**AI 파트너가 정확히 어떻게 작동하는지는 몰라도, 의사결정에 어떻게 활용하면 되는지는 알았다.**", scale5, index=None, key="trust_U3")
     trust_U4 = st.radio("**AI 파트너가 무엇을 하고 있는지 파악하기 쉬웠다.**", scale5, index=None, key="trust_U4")
     trust_U5 = st.radio("**AI 파트너에게서 내가 필요한 의견을 얻으려면 어떻게 해야 하는지 알고 있었다.**", scale5, index=None, key="trust_U5")
     
-    st.markdown("**2-4. 믿음 (Faith)**")
+    st.markdown("<br>", unsafe_allow_html=True)
     trust_F1 = st.radio("**AI 파트너의 의견이 확실히 옳은지 모르더라도 나는 그것을 신뢰했다.**", scale5, index=None, key="trust_F1")
     trust_F2 = st.radio("**의사결정이 불확실할 때, 나는 내 판단보다 AI 파트너의 의견을 더 신뢰했다.**", scale5, index=None, key="trust_F2")
     trust_F3 = st.radio("**결정이 확신이 서지 않을 때, 나는 AI 파트너가 최선의 해결책을 제시할 것이라 믿었다.**", scale5, index=None, key="trust_F3")
     trust_F4 = st.radio("**AI 파트너가 예상치 못한 의견을 제시하더라도, 그것이 옳다고 믿었다.**", scale5, index=None, key="trust_F4")
     trust_F5 = st.radio("**근거가 없어도, AI 파트너가 어려운 문제를 해결할 수 있다고 확신했다.**", scale5, index=None, key="trust_F5")
 
-    st.markdown("**2-5. 개인적 친밀감 (Personal Attachment)**")
+    st.markdown("<br>", unsafe_allow_html=True)
     trust_P1 = st.radio("**만약 AI 파트너를 더 이상 사용할 수 없게 된다면 상실감을 느낄 것이다.**", scale5, index=None, key="trust_P1")
     trust_P2 = st.radio("**나는 AI 파트너와 협업하는 것에 유대감을 느꼈다.**", scale5, index=None, key="trust_P2")
     trust_P3 = st.radio("**AI 파트너는 내 의사결정 방식에 잘 맞았다.**", scale5, index=None, key="trust_P3")
