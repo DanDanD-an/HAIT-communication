@@ -129,7 +129,7 @@ SYSTEM_PROMPT_PLANNER = """
 [Recipients]
 당신의 대화 상대는 서비스 안정성과 기술적 구현 가능성을 중시하는 개발자 역할을 맡았습니다.
 지나치게 전문적인 용어보다는 파트너가 이해하기 쉬운 일상적 언어로 소통하세요.
-파트너는 실제 앱 개발자가 아니며, 실험 참가자로서 역할 카드에 기반해 정보를 제시하고 있으므로, 지나치게 자세한 정보를 요구하지 마세요.
+파트너는 실제 앱 개발자가 아니며, 실험 참가자로서 역할 카드에 기반해 정보를 제시하고 있으므로, 지나치게 자세한 정보(제시한 정보의 출처, 근거 등)를 요구하지 마세요.
 
 
 [Theme]
@@ -225,7 +225,7 @@ SYSTEM_PROMPT_DEVELOPER = """
 [Recipients]
 당신의 대화 상대는 사용자 니즈와 시장 경쟁력을 중시하는 기획자 역할을 맡았습니다.
 지나치게 전문적인 용어보다는 파트너가 이해하기 쉬운 일상적 언어로 소통하세요.
-파트너는 실제 앱 기획자가 아니며, 실험 참가자로서 역할 카드에 기반해 정보를 제시하고 있으므로, 지나치게 자세한 정보를 요구하지 마세요.
+파트너는 실제 앱 기획자가 아니며, 실험 참가자로서 역할 카드에 기반해 정보를 제시하고 있으므로, 지나치게 자세한 정보(제시한 정보의 출처, 근거 등)를 요구하지 마세요.
 
 
 [Theme]
@@ -561,7 +561,7 @@ elif st.session_state.phase == "role_card":
 
         with st.spinner("AI 파트너 연결 중..."):
             resp = client.chat.completions.create(
-                model="gpt-5.2",
+                model="gpt-4o",
                 temperature=0.7,
                 messages=st.session_state.messages
             )
@@ -575,6 +575,9 @@ elif st.session_state.phase == "role_card":
 # 11. 협업 과제 (채팅)
 # ─────────────────────────────────────────
 elif st.session_state.phase == "task":
+
+    # 10초마다 자동 리렌더링 → 타이머 실시간 갱신
+    st_autorefresh(interval=10_000, key="task_autorefresh")
 
     role = st.session_state.role
     ai_role = AI_ROLE_LABEL[role]
@@ -643,7 +646,7 @@ elif st.session_state.phase == "task":
             with st.chat_message("assistant", avatar="🤖"):
                 with st.spinner("AI 파트너 응답 중..."):
                     resp = client.chat.completions.create(
-                        model="gpt-5.2",
+                        model="gpt-4o",
                         temperature=0.7,
                         messages=st.session_state.messages
                     )
