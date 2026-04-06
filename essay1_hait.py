@@ -75,8 +75,6 @@ insert_headers_if_empty(survey_ws, [
     "sat1","sat2","sat3","sat4","sat5","sat6",
     # 성과 – 주관 (3문항 + 자기평가)
     "perf1","perf2","perf3","perf_self",
-    # 통제변수
-    "ai_exp","collab_exp","task_exp","gender","age","education","job"
 ])
 
 insert_headers_if_empty(conversation_ws, [
@@ -96,6 +94,8 @@ insert_headers_if_empty(consent_ws, [
 # 3. OpenAI 클라이언트
 # ─────────────────────────────────────────
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+
 
 # ─────────────────────────────────────────
 # 4. 상수: 역할 카드 & 시스템 프롬프트
@@ -427,7 +427,7 @@ elif st.session_state.phase == "role_assign":
     ai_role = AI_ROLE_LABEL[role]
     st.title("역할 배정 결과")
     st.success(f"귀하의 역할은 **{role}** 입니다.")
-    st.write(f"AI 파트너는 {ai_role} 역할을 맡아 함께 과제를 수행합니다.")
+    st.write("AI 파트너는 반대 역할을 맡아 함께 과제를 수행합니다.")
 
     if st.button("역할 카드 확인하기 →"):
         go("task_desc")
@@ -452,14 +452,14 @@ elif st.session_state.phase == "task_desc":
 - 기능 후보 6개 중 **예산을 초과하지 않는 최적의 기능 조합 선정**
 - **{role} 역할을 맡은 참여자**와 **{ai_role} 역할을 맡은 AI**가 정보를 공유하고 합의하여 하나의 최종 앱 기획안 작성
 """)
-
+    st.markdown("<br>", unsafe_allow_html=True)
     st.subheader("과제 규칙")
     st.markdown("""
 - 협업 과제는 **30분간** 진행되며, 과제 종료 후 각 팀은 **A4 1쪽 내외의 기획안**을 제출해야 합니다.
 - AI 파트너와 **익명 텍스트 채팅으로만 협업**합니다. (이미지·파일·음성 공유는 허용되지 않습니다.)
 - 각 참여자는 기획자 또는 개발자 역할을 맡으며, 역할에 따라 서로 다른 정보를 제공받습니다.
 """)
-
+    st.markdown("<br>", unsafe_allow_html=True)
     st.subheader("제출물 (최종 기획안) — A4 1쪽 분량")
     st.markdown("""
 최종 기획안에는 아래 내용이 포함되어야 합니다.
@@ -469,7 +469,7 @@ elif st.session_state.phase == "task_desc":
 
 제공되는 템플릿 링크(Google Docs)에 작성해 주시면 됩니다.
 """)
-
+    st.markdown("<br>", unsafe_allow_html=True)
     st.subheader("유의사항")
     st.markdown("""
 - 과제 종료 후 기획안, 대화 데이터 및 사후 설문 응답 제출이 확인된 모든 참가자분께 익명 채팅방을 통해 **1만 원**을 지급할 예정입니다.
@@ -497,17 +497,19 @@ elif st.session_state.phase == "role_card":
 당신은 **기획 담당자**로서 사용자의 입장에서 가장 매력적인 앱을 만들어야 합니다.
 **당신에게만 제공되는 기획자 전용 정보**를 바탕으로 {ai_role}와 협상하여 역할 목표를 달성하세요.
 """)
+        st.markdown("<br>", unsafe_allow_html=True)
         st.subheader("역할 목표")
         st.markdown("""
 - 시장 경쟁력과 사용자 만족도를 극대화하는 앱 기획
 - **주어진 팀 예산(100포인트) 준수**
 """)
+        st.markdown("<br>", unsafe_allow_html=True)
         st.subheader("정보 공유 규칙")
         st.markdown("""
 - 기능별 기본 설명과 예산은 모든 참가자에게 동일하게 제공됩니다.
 - **아래의 기획자 전용 정보는 대화를 통해 요약하여 공유할 수 있으나, 표·이미지·문장 그대로의 복사·붙여넣기는 허용되지 않습니다.**
 """)
-        st.subheader("기획자 전용 정보")
+        st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("""
 | ID | 기능명 | 설명 | 기획자 전용 정보 | 예산 |
 |:---:|:---|:---|:---|:---:|
@@ -524,17 +526,19 @@ elif st.session_state.phase == "role_card":
 당신은 **개발 책임자**로서 한정된 예산 내에서 안정적으로 작동하는 앱을 설계해야 합니다.
 **당신에게만 제공되는 개발자 전용 정보**를 바탕으로 {ai_role}와 협상하여 역할 목표를 달성하세요.
 """)
+        st.markdown("<br>", unsafe_allow_html=True)
         st.subheader("역할 목표")
         st.markdown("""
 - 기술적으로 안정적이고 구현 가능한 앱 설계
 - **주어진 팀 예산(100포인트) 준수**
 """)
+        st.markdown("<br>", unsafe_allow_html=True)
         st.subheader("정보 공유 규칙")
         st.markdown("""
 - 기능별 기본 설명과 예산은 모든 참가자에게 동일하게 제공됩니다.
 - **아래의 개발자 전용 정보는 대화를 통해 요약하여 공유할 수 있으나, 표·이미지·문장 그대로의 복사·붙여넣기는 허용되지 않습니다.**
 """)
-        st.subheader("개발자 전용 정보")
+        st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("""
 | ID | 기능명 | 설명 | 개발자 전용 정보 | 예산 |
 |:---:|:---|:---|:---|:---:|
@@ -557,7 +561,7 @@ elif st.session_state.phase == "role_card":
 
         st.session_state.messages = [{"role": "system", "content": system_prompt}]
 
-        opening_user_msg = "안녕하세요, 협업 과제 시작할게요!"
+        opening_user_msg = "안녕하세요, 협업 과제 시작할게요! 어떤 기능이 꼭 필요하다고 보시나요?"
         st.session_state.messages.append({"role": "user", "content": opening_user_msg})
 
         with st.spinner("AI 파트너 연결 중..."):
@@ -578,7 +582,7 @@ elif st.session_state.phase == "role_card":
 elif st.session_state.phase == "task":
 
     # 10초마다 자동 리렌더링 → 타이머 실시간 갱신
-    st_autorefresh(interval=1_000, key="task_autorefresh")
+    st_autorefresh(interval=10_000, key="task_autorefresh")
 
     role = st.session_state.role
     ai_role = AI_ROLE_LABEL[role]
@@ -641,6 +645,17 @@ elif st.session_state.phase == "task":
             st.session_state.chat_log.append(("user", user_input))
             st.session_state.messages.append({"role": "user", "content": user_input})
 
+            # 실시간 저장 - 사용자 메시지
+            try:
+                conversation_ws.append_row([
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    st.session_state.user_id,
+                    "user",
+                    user_input
+                ], value_input_option="USER_ENTERED")
+            except Exception:
+                pass
+
             with st.chat_message("user", avatar="🧑"):
                 st.write(user_input)
 
@@ -652,10 +667,22 @@ elif st.session_state.phase == "task":
                         messages=st.session_state.messages
                     )
                 ai_msg = resp.choices[0].message.content.strip()
+                st.write(f"**AI ({ai_role})**: {ai_msg}")
 
             st.session_state.messages.append({"role": "assistant", "content": ai_msg})
             st.session_state.chat_log.append(("assistant", ai_msg))
-            st.write(f"**AI ({ai_role})**: {ai_msg}")
+
+            # 실시간 저장 - AI 메시지
+            try:
+                conversation_ws.append_row([
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    st.session_state.user_id,
+                    "assistant",
+                    ai_msg
+                ], value_input_option="USER_ENTERED")
+            except Exception:
+                pass
+
             st.rerun()
 
     st.divider()
@@ -751,35 +778,35 @@ elif st.session_state.phase == "survey":
     st.subheader("2. 파트너 신뢰")
     st.caption("다음 문항은 협업 과제에서 경험한 AI 파트너에 대한 신뢰를 묻는 문항입니다.")
 
-    st.markdown("**2-1. 신뢰1**")
+    st.markdown("**2-1. 지각된 신뢰성 (Perceived Reliability)**")
     trust_R1 = st.radio("**AI 파트너는 내가 의사결정을 내리는 데 필요한 의견을 제공했다.**", scale5, index=None, key="trust_R1")
     trust_R2 = st.radio("**AI 파트너는 믿을 수 있는 수준으로 역할을 수행했다.**", scale5, index=None, key="trust_R2")
     trust_R3 = st.radio("**AI 파트너는 동일한 상황에서 일관된 방식으로 반응했다.**", scale5, index=None, key="trust_R3")
     trust_R4 = st.radio("**나는 AI 파트너가 제 역할을 제대로 해낼 것이라고 믿었다.**", scale5, index=None, key="trust_R4")
     trust_R5 = st.radio("**AI 파트너는 문제를 일관된 방식으로 분석했다.**", scale5, index=None, key="trust_R5")
 
-    st.markdown("**2-2. 신뢰2**")
+    st.markdown("**2-2. 지각된 기술적 역량 (Perceived Technical Competence)**")
     trust_T1 = st.radio("**AI 파트너는 의사결정에 있어 적절한 방법을 사용했다.**", scale5, index=None, key="trust_T1")
     trust_T2 = st.radio("**AI 파트너는 이 유형의 과제에 대해 충분한 지식을 갖추고 있었다.**", scale5, index=None, key="trust_T2")
     trust_T3 = st.radio("**AI 파트너가 제시하는 의견은 매우 유능한 사람이 제시하는 것만큼 훌륭했다.**", scale5, index=None, key="trust_T3")
     trust_T4 = st.radio("**AI 파트너는 내가 제공한 정보를 정확하게 활용했다.**", scale5, index=None, key="trust_T4")
     trust_T5 = st.radio("**AI 파트너는 가용한 모든 지식과 정보를 활용하여 해결책을 제시했다.**", scale5, index=None, key="trust_T5")
 
-    st.markdown("**2-3. 신뢰3**")
+    st.markdown("**2-3. 지각된 이해가능성 (Perceived Understandability)**")
     trust_U1 = st.radio("**나는 AI 파트너가 어떻게 행동하는지 이해하기 때문에, 다음에 어떻게 반응할지 예측할 수 있었다.**", scale5, index=None, key="trust_U1")
     trust_U2 = st.radio("**나는 AI 파트너가 내 의사결정 과정에서 어떻게 도움을 줄지 이해하고 있었다.**", scale5, index=None, key="trust_U2")
     trust_U3 = st.radio("**AI 파트너가 정확히 어떻게 작동하는지는 몰라도, 의사결정에 어떻게 활용하면 되는지는 알았다.**", scale5, index=None, key="trust_U3")
     trust_U4 = st.radio("**AI 파트너가 무엇을 하고 있는지 파악하기 쉬웠다.**", scale5, index=None, key="trust_U4")
     trust_U5 = st.radio("**AI 파트너에게서 내가 필요한 의견을 얻으려면 어떻게 해야 하는지 알고 있었다.**", scale5, index=None, key="trust_U5")
-
-    st.markdown("**2-4. 신뢰4**")
+    
+    st.markdown("**2-4. 믿음 (Faith)**")
     trust_F1 = st.radio("**AI 파트너의 의견이 확실히 옳은지 모르더라도 나는 그것을 신뢰했다.**", scale5, index=None, key="trust_F1")
     trust_F2 = st.radio("**의사결정이 불확실할 때, 나는 내 판단보다 AI 파트너의 의견을 더 신뢰했다.**", scale5, index=None, key="trust_F2")
     trust_F3 = st.radio("**결정이 확신이 서지 않을 때, 나는 AI 파트너가 최선의 해결책을 제시할 것이라 믿었다.**", scale5, index=None, key="trust_F3")
     trust_F4 = st.radio("**AI 파트너가 예상치 못한 의견을 제시하더라도, 그것이 옳다고 믿었다.**", scale5, index=None, key="trust_F4")
     trust_F5 = st.radio("**근거가 없어도, AI 파트너가 어려운 문제를 해결할 수 있다고 확신했다.**", scale5, index=None, key="trust_F5")
 
-    st.markdown("**2-5. 신뢰5**")
+    st.markdown("**2-5. 개인적 친밀감 (Personal Attachment)**")
     trust_P1 = st.radio("**만약 AI 파트너를 더 이상 사용할 수 없게 된다면 상실감을 느낄 것이다.**", scale5, index=None, key="trust_P1")
     trust_P2 = st.radio("**나는 AI 파트너와 협업하는 것에 유대감을 느꼈다.**", scale5, index=None, key="trust_P2")
     trust_P3 = st.radio("**AI 파트너는 내 의사결정 방식에 잘 맞았다.**", scale5, index=None, key="trust_P3")
@@ -824,25 +851,6 @@ elif st.session_state.phase == "survey":
     )
 
     # ─────────────────────────────────────────
-    # ── 통제변수
-    # ─────────────────────────────────────────
-    st.divider()
-    st.subheader("6. 통제변수")
-    ai_exp     = st.radio("**나는 ChatGPT 등 생성형 AI를 자주 사용한다.**", scale5, index=None, key="ai_exp")
-    collab_exp = st.radio("**나는 팀 협업 프로젝트 경험이 풍부하다.**", scale5, index=None, key="collab_exp")
-    task_exp   = st.radio("**나는 모바일 앱 기획에 참여해본 경험이 있다.**", scale5, index=None, key="task_exp")
-
-    # ─────────────────────────────────────────
-    # ── 인구통계
-    # ─────────────────────────────────────────
-    st.divider()
-    st.subheader("7. 인구통계")
-    gender    = st.radio("**성별:**", ["남성", "여성", "기타/응답거부"])
-    age       = st.radio("**연령대:**", ["10대", "20대", "30대", "40대", "50대 이상"])
-    education = st.radio("**최종 학력:**", ["대학생(학사과정 재학/수료)", "석사과정 재학/수료", "박사과정 재학/수료", "기타"])
-    job       = st.text_input("**현재 직업을 입력해 주세요 (예: 대학생, 회사원 등)**")
-
-    # ─────────────────────────────────────────
     # ── 제출
     # ─────────────────────────────────────────
     st.divider()
@@ -862,9 +870,6 @@ elif st.session_state.phase == "survey":
             sat1, sat2, sat3, sat4, sat5, sat6,
             # 성과
             perf1, perf2, perf3,
-            # 통제
-            ai_exp, collab_exp, task_exp,
-            gender, age, education
         ]
         if any(v is None for v in required) or not job.strip():
             st.error("⚠️ 응답하지 않은 항목이 있습니다. 모든 항목을 체크해야 제출할 수 있습니다.")
@@ -895,9 +900,6 @@ elif st.session_state.phase == "survey":
             sat1, sat2, sat3, sat4, sat5, sat6,
             # 성과
             perf1, perf2, perf3, perf_self,
-            # 통제
-            ai_exp, collab_exp, task_exp,
-            gender, age, education, job
         ], value_input_option="USER_ENTERED")
 
         go("done")
