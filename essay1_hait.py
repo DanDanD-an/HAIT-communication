@@ -865,22 +865,22 @@ elif st.session_state.phase == "survey":
     st.divider()
     st.subheader("4. 협업 만족도")
     sat1 = st.radio("**전반적으로 이번 협업에 만족한다.**", scale5, index=None, key="sat1")
-    sat2 = st.radio("**AI 파트너의 기여에 만족한다.**", scale5, index=None, key="sat2")
-    sat3 = st.radio("**AI 파트너와의 상호작용이 즐거웠다.**", scale5, index=None, key="sat3")
+    sat2 = st.radio("**나는 AI 파트너의 기여에 만족한다.**", scale5, index=None, key="sat2")
+    sat3 = st.radio("**우리의 협업 과정에는 개선될 수 있는 부분이 있다고 느꼈다.**", scale5, index=None, key="sat3")
     sat4 = st.radio("**이번 협업 경험은 긍정적이었다.**", scale5, index=None, key="sat4")
-    sat5 = st.radio("**AI 파트너와 다시 협업하고 싶다.**", scale5, index=None, key="sat5")
-    sat6 = st.radio("**AI 파트너와의 협업이 불만스러웠다.**", scale5, index=None, key="sat6")
+    sat5 = st.radio("**지난 협업 경험과 비교했을 때, 이번 협업은 전반적으로 만족스러웠다.**", scale5, index=None, key="sat5")
+    sat6 = st.radio("**나의 파트너도 이번 협업을 긍정적으로 느낄 것이다.**", scale5, index=None, key="sat6")
 
     # ─────────────────────────────────────────
     # ── 협업 성과 (주관)
     # ─────────────────────────────────────────
     st.divider()
     st.subheader("5. 협업 성과 (주관)")
-    perf1 = st.radio("**우리 팀은 과제 목표를 달성했다.**", scale5, index=None, key="perf1")
-    perf2 = st.radio("**최종 기획안의 완성도가 높다고 생각한다.**", scale5, index=None, key="perf2")
-    perf3 = st.radio("**협업 과정이 효율적으로 진행되었다.**", scale5, index=None, key="perf3")
+    perf1 = st.radio("**우리 팀은 매우 생산적이었다.**", scale5, index=None, key="perf1")
+    perf2 = st.radio("**우리 팀은 양질의 업무를 수행했다.**", scale5, index=None, key="perf2")
+    perf3 = st.radio("**우리 팀은 과제 목표를 달성했다.**", scale5, index=None, key="perf3")
     perf_self = st.slider(
-        "**전반적으로 이번 협업의 결과물(기획안)을 0~100점으로 평가한다면?**",
+        "**전반적으로 이번 협업의 결과물(기획안)의 완성도를 0~100점으로 평가해 주십시오.**",
         min_value=0, max_value=100, value=50, step=1
     )
 
