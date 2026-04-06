@@ -816,8 +816,8 @@ elif st.session_state.phase == "survey":
     st.markdown("<br>", unsafe_allow_html=True)
     trust_R1 = st.radio("**AI 파트너는 내가 의사결정을 내리는 데 필요한 의견을 제공했다.**", scale5, index=None, key="trust_R1")
     trust_R2 = st.radio("**AI 파트너는 믿을 수 있는 수준으로 역할을 수행했다.**", scale5, index=None, key="trust_R2")
-    trust_R3 = st.radio("**AI 파트너는 동일한 상황에서 일관된 방식으로 반응했다.**", scale5, index=None, key="trust_R3")
-    trust_R4 = st.radio("**나는 AI 파트너가 제 역할을 제대로 해낼 것이라고 믿었다.**", scale5, index=None, key="trust_R4")
+    trust_R3 = st.radio("**AI 파트너는 일관된 방식으로 반응했다.**", scale5, index=None, key="trust_R3")
+    trust_R4 = st.radio("**나는 AI 파트너가 제대로 기능할 것이라 믿었다.**", scale5, index=None, key="trust_R4")
     trust_R5 = st.radio("**AI 파트너는 문제를 일관된 방식으로 분석했다.**", scale5, index=None, key="trust_R5")
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -836,14 +836,14 @@ elif st.session_state.phase == "survey":
     
     st.markdown("<br>", unsafe_allow_html=True)
     trust_F1 = st.radio("**AI 파트너의 의견이 확실히 옳은지 모르더라도 나는 그것을 신뢰했다.**", scale5, index=None, key="trust_F1")
-    trust_F2 = st.radio("**의사결정이 불확실할 때, 나는 내 판단보다 AI 파트너의 의견을 더 신뢰했다.**", scale5, index=None, key="trust_F2")
+    trust_F2 = st.radio("**의사결정이 어려울 때, 나는 내 판단보다 AI 파트너의 의견을 더 신뢰했다.**", scale5, index=None, key="trust_F2")
     trust_F3 = st.radio("**결정이 확신이 서지 않을 때, 나는 AI 파트너가 최선의 해결책을 제시할 것이라 믿었다.**", scale5, index=None, key="trust_F3")
     trust_F4 = st.radio("**AI 파트너가 예상치 못한 의견을 제시하더라도, 그것이 옳다고 믿었다.**", scale5, index=None, key="trust_F4")
     trust_F5 = st.radio("**근거가 없어도, AI 파트너가 어려운 문제를 해결할 수 있다고 확신했다.**", scale5, index=None, key="trust_F5")
 
     st.markdown("<br>", unsafe_allow_html=True)
     trust_P1 = st.radio("**만약 AI 파트너를 더 이상 사용할 수 없게 된다면 상실감을 느낄 것이다.**", scale5, index=None, key="trust_P1")
-    trust_P2 = st.radio("**나는 AI 파트너와 협업하는 것에 유대감을 느꼈다.**", scale5, index=None, key="trust_P2")
+    trust_P2 = st.radio("**나는 AI 파트너와 협업하면서 유대감을 느꼈다.**", scale5, index=None, key="trust_P2")
     trust_P3 = st.radio("**AI 파트너는 내 의사결정 방식에 잘 맞았다.**", scale5, index=None, key="trust_P3")
     trust_P4 = st.radio("**나는 AI 파트너와 함께 의사결정을 내리는 것이 좋았다.**", scale5, index=None, key="trust_P4")
     trust_P5 = st.radio("**나는 AI 파트너와 함께 의사결정을 내리는 것을 개인적으로 선호한다.**", scale5, index=None, key="trust_P5")
@@ -865,7 +865,7 @@ elif st.session_state.phase == "survey":
     # ─────────────────────────────────────────
     st.divider()
     st.subheader("4. 협업 만족도")
-    sat1 = st.radio("**전반적으로 이번 협업에 만족한다.**", scale5, index=None, key="sat1")
+    sat1 = st.radio("**전반적으로, 나는 이번 협업에 만족한다.**", scale5, index=None, key="sat1")
     sat2 = st.radio("**나는 AI 파트너의 기여에 만족한다.**", scale5, index=None, key="sat2")
     sat3 = st.radio("**우리의 협업 과정에는 개선될 수 있는 부분이 있다고 느꼈다.**", scale5, index=None, key="sat3")
     sat4 = st.radio("**이번 협업 경험은 긍정적이었다.**", scale5, index=None, key="sat4")
@@ -944,14 +944,14 @@ elif st.session_state.phase == "survey":
 # ─────────────────────────────────────────
 elif st.session_state.phase == "done":
 
-    st.title("🎉 실험 완료")
-    st.success("설문까지 모두 완료하셨습니다. 진심으로 감사드립니다!")
+    st.title("🎉 참여 완료")
+    st.success("설문까지 모두 완료하셨습니다. 참여해주셔서 진심으로 감사드립니다!")
     st.markdown(f"""
 **참여자 ID**: `{st.session_state.user_id}`  
-(보상 지급 확인 시 사용될 수 있습니다.)
+(보상 지급을 위해 위의 참여자 ID를 연구자 카카오톡으로 제출해 주세요.)
 
-참여 보상(10,000원)은 연구팀에서 데이터 확인 후, 카카오톡을 통해 지급해 드릴 예정입니다.
-문의사항은 아래 이메일로 연락해 주세요.
+참여 보상(1만 원)은 연구팀에서 데이터 확인 후, 카카오톡을 통해 지급해 드릴 예정입니다.
+문의사항은 아래 이메일 또는 카카오톡으로 연락해 주세요.
 
-📧 연구자: 노단 (고려대학교 미디어학과) | dandandan1002@gmail.com
+📧 연구자: 노단 (고려대학교 미디어학과) | dandandan1002@gmail.com | 카카오톡 ID: dandan_dan
 """)
