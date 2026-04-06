@@ -947,7 +947,7 @@ elif st.session_state.phase == "survey":
 elif st.session_state.phase == "done":
 
     st.title("🎉 참여 완료")
-    st.success("설문까지 모두 완료하셨습니다. 참여해주셔서 진심으로 감사드립니다!")
+    st.success("설문까지 모두 완료하셨습니다. 참여해주셔서 감사합니다! 🙇‍♀️")
     st.markdown(f"""
 **참여자 ID**: `{st.session_state.user_id}`  
 (보상 지급을 위해 위의 참여자 ID를 연구자 카카오톡으로 제출해 주세요.)
