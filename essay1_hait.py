@@ -582,7 +582,7 @@ elif st.session_state.phase == "role_card":
 elif st.session_state.phase == "task":
 
     # 10초마다 자동 리렌더링 → 타이머 실시간 갱신
-    st_autorefresh(interval=1_000, key="task_autorefresh")
+    st_autorefresh(interval=10_000, key="task_autorefresh")
 
     role = st.session_state.role
     ai_role = AI_ROLE_LABEL[role]
@@ -915,7 +915,7 @@ elif st.session_state.phase == "done":
 **참여자 ID**: `{st.session_state.user_id}`  
 (보상 지급 확인 시 사용될 수 있습니다.)
 
-참여 보상(10,000원)은 연구팀에서 데이터 확인 후, 카카오톡을 통해 지급드릴 예정입니다.
+참여 보상(10,000원)은 연구팀에서 데이터 확인 후, 카카오톡을 통해 지급해 드릴 예정입니다.
 문의사항은 아래 이메일로 연락해 주세요.
 
 📧 연구자: 노단 (고려대학교 미디어학과) | dandandan1002@gmail.com
