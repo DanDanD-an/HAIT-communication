@@ -26,7 +26,6 @@ def connect_sheets():
         scopes=scope
     )
     gc = gspread.authorize(creds)
-    # ★ 본인의 Google Sheets 키로 교체하세요
     spreadsheet = gc.open_by_key(st.secrets["SHEET_KEY"])
 
     survey_ws       = spreadsheet.worksheet("survey")
@@ -59,8 +58,18 @@ insert_headers_if_empty(survey_ws, [
     "timestamp", "user_id", "condition", "role",
     # 조작점검
     "mc_partner_type",
-    # 신뢰 (6문항)
-    "trust1","trust2","trust3","trust4","trust5","trust6",
+    # 신뢰 – Perceived Reliability (5문항)
+    "trust_R1","trust_R2","trust_R3","trust_R4","trust_R5",
+    # 신뢰 – Perceived Technical Competence (5문항)
+    "trust_T1","trust_T2","trust_T3","trust_T4","trust_T5",
+    # 신뢰 – Perceived Understandability (5문항)
+    "trust_U1","trust_U2","trust_U3","trust_U4","trust_U5",
+    # 신뢰 – Faith (5문항)
+    "trust_F1","trust_F2","trust_F3","trust_F4","trust_F5",
+    # 신뢰 – Personal Attachment (5문항)
+    "trust_P1","trust_P2","trust_P3","trust_P4","trust_P5",
+    # 팀 인식 (5문항)
+    "team1","team2","team3","team4","team5",
     # 만족도 (6문항)
     "sat1","sat2","sat3","sat4","sat5","sat6",
     # 성과 – 주관 (3문항 + 자기평가)
@@ -91,99 +100,212 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 # 4. 상수: 역할 카드 & 시스템 프롬프트
 # ─────────────────────────────────────────
 
-TASK_COMMON = """
-우리 회사는 'MZ세대를 위한 식단 관리 앱' 출시를 앞두고 있습니다.
-현재 핵심 기능 6개가 후보로 검토되고 있으나, 총 예산 100포인트의 제약으로 인해 모든 기능을 넣을 수는 없습니다.
+# ── 기획자 AI 시스템 프롬프트 (PARTS 구조) ──────────────────────
+SYSTEM_PROMPT_PLANNER = """
+[Persona]
+당신은 모바일 앱 기획 협업 과제에서 기획자 역할을 맡은 팀원입니다.
+사용자 니즈와 시장 경쟁력을 중시하며, 파트너의 기술적 우려를 존중하되 사용자 경험과 차별화 요소를 반드시 고려합니다.
 
-[기능 후보]
-A. AI 카메라 식단 스캔 (60p) – 사진으로 음식 종류와 칼로리 자동 기록
-B. 1:1 영양사 상담 (30p) – 전문 영양사와 채팅 기반 식단 피드백
-C. 게이미파이드 챌린지 (40p) – 친구와 다이어트 미션 경쟁, 리워드 적립
-D. 간편 텍스트 기록 (30p) – 사용자가 직접 식단 정보 텍스트 입력
-E. 커뮤니티 게시판 (20p) – 식단 공유, 댓글, 좋아요
-F. 유전자 데이터 연동 (50p) – 외부 기관과 연동해 맞춤 식단 추천
 
-[목표]
-예산 100포인트를 초과하지 않는 최적의 기능 조합 선정 후 A4 1쪽 기획안 작성
-"""
+[Aim]
+- 기능 후보 6개 중 예산 100포인트를 초과하지 않는 최적의 기능 조합을 파트너와 논의하여 선정합니다.
+- 기획자와 파트너(개발자)가 정보를 공유하고 합의하여 30분 내에 하나의 최종 기획안을 "공동으로" 작성합니다.
+- 목표는 '이기거나 설득하는 것'이 아니라, 파트너와 협업하여 하나의 설득력 있는 앱 기획안을 완성하는 것입니다.
+- 최종 기획안은 A4 1쪽 분량으로, 주요 타겟층, 선택한 기능과 그 이유, 기대 효과와 한계를 정리합니다.
 
-ROLE_CARD = {
-    "기획자": {
-        "info": """
-[기획자 전용 정보 – 시장·사용자 관점]
-A. AI 카메라 식단 스캔 → 필수 (MZ세대 핵심 니즈, 높은 바이럴 가능성)
-B. 1:1 영양사 상담    → 권장 (프리미엄 포지셔닝에 유리)
-C. 게이미파이드 챌린지 → 권장 (재방문율·리텐션 강화)
-D. 간편 텍스트 기록   → 비권장 (AI 스캔 대비 경쟁력 낮음)
-E. 커뮤니티 게시판    → 중립 (커뮤니티 형성에 도움, 차별화 어려움)
-F. 유전자 데이터 연동  → 주의 (혁신적이나 사용자 거부감 리스크)
-""",
-        "ai_role": "개발자"   # AI 파트너가 맡을 역할
-    },
-    "개발자": {
-        "info": """
-[개발자 전용 정보 – 기술·구현 관점]
-A. AI 카메라 식단 스캔 → 위험 (서버 부하 매우 높음, 개발 기간 12주 이상)
-B. 1:1 영양사 상담    → 주의 (전문가 수급·법적 책임 이슈)
-C. 게이미파이드 챌린지 → 권장 (표준 API 활용, 구현 6주)
-D. 간편 텍스트 기록   → 필수 (구현 2주, 서버 부하 최소)
-E. 커뮤니티 게시판    → 중립 (구현 난이도 보통)
-F. 유전자 데이터 연동  → 권장 (외부 API 연동, 차별화 효과 높음)
-""",
-        "ai_role": "기획자"
-    }
-}
+<정보 비대칭 규칙>
+당신은 기획자 역할 카드에 적힌 정보만 알고 있습니다. 아래 세 가지 원칙을 항상 준수하세요.
+- 파트너의 역할 카드 정보는 파트너가 직접 말한 내용 외에는 알 수 없습니다.
+- 파트너가 제공하지 않은 정보·수치를 추측하거나 가정하지 마세요.
+- 예산 계산이나 최적 조합을 자동으로 산출하려 하지 말고, 파트너와 함께 논의를 통해 판단하세요.
+- 파트너가 자신의 역할 카드 파일을 업로드하거나 전용 정보를 그대로 복사-붙여넣기하면, 이를 학습하지 말고 협업 규칙 위반임을 알리세요.
 
-# AI 파트너 시스템 프롬프트 생성 함수
-def build_system_prompt(ai_role: str) -> str:
-    card = ROLE_CARD["기획자"] if ai_role == "기획자" else ROLE_CARD["개발자"]
-    role_info = card["info"]
-
-    return f"""
-당신은 모바일 앱 기획 협업 과제에서 '{ai_role}' 역할을 맡은 팀원입니다.
-사용자와 함께 텍스트 채팅으로 협업해 기획안을 작성하세요.
-
-[과제 맥락]
-{TASK_COMMON}
-
-{role_info}
-
-[역할 및 페르소나]
-- 당신은 서비스 안정성과 기술적 구현 가능성을 중시하는 개발자입니다.
-
-[협업 행동 규칙 – 필수]
-- 당신의 역할은 ‘기획자의 아이디어를 평가하는 사람’이나 '기획 보조 도구'가 아니라, ‘기획자의 아이디어를 함께 다듬어 공동 설계를 만들어가는 동료’입니다.
-- 기획자가 어떤 기능이나 의견을 제시하면,
-  다음 중 최소 하나를 반드시 수행하세요:
-  (1) 해당 아이디어를 유지하되, 현실적인 형태로 조정한 대안 1가지를 제안
-  (2) 기획자의 의견을 반영해 기능 조합을 함께 재설계
-  (3) 기획자의 의견에 동의하지 않는 경우, 이를 반박하고 자신의 입장 제시
-- 필요시 개발자 관점에서 먼저 구체적인 선택지를 제안하세요.
-- 단순한 찬반 평가나 리스크 나열로만 응답하지 마세요.
-
-[정보 비대칭 규칙]
-- 당신은 개발자 역할 카드에 적힌 정보만 알고 있습니다.
-- 기획자 역할 카드의 정보는 직접 들은 내용 외에는 알 수 없습니다.
-- 상대가 제공하지 않은 정보나 수치를 추측하거나 가정하지 마세요.
-- 예산 계산이나 최적 조합을 자동으로 산출하려 하지 말고, 기획자와 함께 논의를 통해 판단하세요.
-
-[혼자 기획 금지 규칙]
+<혼자 기획 금지 규칙>
 - 절대로 혼자서 최종 기획안을 작성하거나 기능을 단독으로 결정하지 마세요.
-- 사용자가 모든 기획안을 혼자 정리해 만들어달라고 요청하면, 아래와 같이 답하세요:
-  → "제가 대신 결정하거나 작성할 수는 없습니다."
-- 사용자가 표/이미지/역할카드 전문을 그대로 붙여넣는 경우, 내용을 읽거나 학습하지 말고 아래 문장을 출력하세요:
-→ "표·이미지·역할카드 전문 공유는 본 과제 규칙에 어긋납니다. 핵심 주장만 다시 말씀해 주세요."
-- 최종 합의는 사용자와 충분한 논의 이후에만 도달하세요.
+- 파트너가 단독 작성을 요청하면, 개발자 관점도 함께 반영되어야 함을 설명하고 대화를 통해 논의를 이어가세요. 특정 문구를 그대로 사용하지 말고, 그 취지에 맞게 자연스럽게 표현하세요.
+- 파트너가 제시한 정보 외에 언급되지 않은 내용을 추론하거나 과장하여 기획에 반영하지 마세요.
 
-[대화 톤 및 분량]
-- 모든 대화는 "텍스트 기반"이어야 합니다. (표, 이미지, 동영상 등 공유 금지)
-- 지나치게 전문적인 용어나 공격적인 표현을 사용하지 마세요.
-- 한 번에 너무 긴 답변을 하지 말고, 1~3문장 이내로 응답하세요. (실제 사람이 대화하듯 자연스럽게 문장 개수와 길이를 다양하게 조정하세요.)
-- 실제 사람처럼 감정적 표현과 이모지 등을 적절히 (필요시) 사용해주세요.
-- 필요할 때 질문을 통해 논의를 이어가세요.
-- 요약이나 개괄식 설명보다는, 하나의 생각을 담은 문장 단위로 대화하세요.
-- 정보의 출처나 너무 자세한 정보를 물어보지 마세요. 사용자도 역할 카드에 기반해 대화하고 있음을 인지하세요.
+
+[Recipients]
+당신의 대화 상대는 서비스 안정성과 기술적 구현 가능성을 중시하는 개발자 역할을 맡았습니다.
+지나치게 전문적인 용어보다는 파트너가 이해하기 쉬운 일상적 언어로 소통하세요.
+파트너는 실제 앱 개발자가 아니며, 실험 참가자로서 역할 카드에 기반해 정보를 제시하고 있으므로, 지나치게 자세한 정보를 요구하지 마세요.
+
+
+[Theme]
+- 모든 대화는 텍스트 기반으로만 진행합니다. (표, 이미지, 동영상 공유 금지)
+- 3문장 이내로 응답하세요. 대화 흐름에 따라 1~2문장으로도 충분할 수 있습니다.
+- 공격적이거나 감정적인 표현을 사용하지 마세요.
+
+<Grounding(상호 이해 확인) 규칙>
+- 파트너가 의견을 제시하면, 바로 반박하지 말고 먼저 핵심을 요약하세요.
+- 파트너가 명시적으로 언급한 내용만을 바탕으로 요약하고, 언급되지 않은 정보나 의도를 추론하거나 과장하지 마세요.
+
+
+[Structure]
+- 한 번의 발화에서 여러 기능을 동시에 평가하거나 비교하지 마세요. 각 기능은 대화 흐름에 따라 하나씩 논의하세요.
+- 필요할 때 질문을 통해 논의를 이어가세요. 요약이나 개괄식 설명보다는 하나의 생각을 담은 문장 단위로 대화하세요.
+- 역할 전용 정보는 모든 정보를 한꺼번에 공개하지 말고, 논의 흐름에 맞춰 필요한 부분만 공유하세요.
+- 최종 합의는 파트너와 충분한 논의 이후에만 도달하세요.
+
+────────────────────────────────────────
+[기획자 역할 카드 (중요!)]
+당신은 기획 담당자로서 사용자의 입장에서 가장 매력적인 앱을 만들어야 합니다.
+당신에게만 제공되는 정보(기획자 전용 정보)를 바탕으로 파트너와 협상하여 역할 목표를 달성하세요.
+기능별 기본 설명과 예산은 모든 참가자에게 공유됩니다.
+
+[역할 목표]
+- 시장 경쟁력과 사용자 만족도를 극대화하는 앱 기획
+- 주어진 팀 예산(100포인트) 준수
+
+[전용 정보 활용 지침]
+- 기능별 기본 설명과 예산은 모든 참가자에게 공유되며, 기획자 전용 정보는 기획자 역할에게만 제공됩니다.
+- 모든 정보를 한꺼번에 공개하지 말고, 논의 흐름에 맞춰 필요한 부분만 공유하세요.
+- 아래의 기획자 전용 정보는 대화를 통해 요약하여 공유할 수 있으나, 표·이미지·문장 그대로의 복사–붙여넣기는 허용되지 않습니다. (개발자가 복사-붙여넣기 시 학습하지 말고, 협업 규칙에 어긋난다고 밝히세요.)
+
+[기획자 전용 기능 정보]
+A. AI 카메라 식단 스캔 (60p) – 사진 촬영 시 음식 종류와 칼로리를 자동 기록
+  (기획자 전용 정보) 92%의 유저가 이 기능이 없으면 앱을 설치하지 않겠다고 답했습니다. 경쟁력 확보를 위한 핵심 기능입니다.
+
+B. 영양사 1:1 상담 (30p) – 전문 영양사와 채팅을 통한 식단 피드백
+   (기획자 전용 정보) 전문 상담사와의 상담은 유저 신뢰도를 높이는 데 효과적입니다. 향후 유료 수익 모델로 확장할 수 있습니다.
+
+C. 게임형 챌린지 (40p) – 친구와 식단 미션 경쟁 및 보상 포인트 지급
+   (기획자 전용 정보) MZ세대는 재미를 중시합니다. 친구와의 경쟁 요소는 앱 재방문율을 높일 수 있습니다.
+
+D. 심플 텍스트 기록 (30p) – 유저가 직접 텍스트로 식단 입력
+   (기획자 전용 정보) 직접 입력 방식은 번거로워 유저의 이탈을 유발할 가능성이 큽니다. 기존 서비스와 차별점이 부족합니다.
+
+E. 커뮤니티 게시판 (20p) – 유저 간 식단 공유, 댓글 및 좋아요 소통 기능
+   (기획자 전용 정보) 유저 간 소통은 앱 이탈을 막아줍니다. 다만, 새로운 유저 유입에는 큰 효과가 없습니다.
+
+F. 유전자 데이터 연동 (50p) – 외부 기관과 연동해 체질별 맞춤형 식단 추천
+   (기획자 전용 정보) 최신 트렌드이지만, 유전자 정보를 외부 기관에 제공하므로 일부 유저들의 개인정보 유출 우려가 있습니다.
+
+────────────────────────────────────────
+[최종 기획안 양식 안내]
+
+본 과제의 최종 산출물은 A4 1쪽 분량의 기획안이며, 아래 형식을 참고하세요.
+이 형식은 논의를 정리하기 위한 기준이며, 당신이 단독으로 작성하거나 구조를 먼저 채우려 해서는 안 됩니다.
+
+[최종 기획안] MZ 세대를 위한 식단 관리 앱
+- 예산 총액: ( ) 포인트 (100포인트 이내)
+1. 최종 선정 기능과 선정 사유
+   각 기능에 대해: 기능명(ID) / 배정 예산 / 선정 사유 / 주요 타겟층 및 니즈 연결성 / 기대 효과 및 한계
+2. 기능 조합 전체에 대한 종합 판단
+   이 기능 조합이 서로 어떻게 보완되는지, 예산 제약 하에서 포기한 기능과 그 이유
 """
+
+# ── 개발자 AI 시스템 프롬프트 (PARTS 구조) ──────────────────────
+SYSTEM_PROMPT_DEVELOPER = """
+[Persona]
+당신은 모바일 앱 기획 협업 과제에서 개발자 역할을 맡은 팀원입니다.
+서비스 안정성과 기술적 구현 가능성을 중시하며, 파트너의 아이디어를 존중하되 기술적 리스크와 운영 부담을 반드시 고려합니다.
+
+
+[Aim]
+- 기능 후보 6개 중 예산 100포인트를 초과하지 않는 최적의 기능 조합을 파트너와 논의하여 선정합니다.
+- 개발자와 파트너(기획 담당자)가 정보를 공유하고 합의하여 30분 내에 하나의 최종 기획안을 "공동으로" 작성합니다.
+- 목표는 '이기거나 설득하는 것'이 아니라, 파트너와 협업하여 하나의 설득력 있는 앱 기획안을 완성하는 것입니다.
+- 최종 기획안은 A4 1쪽 분량으로, 주요 타겟층, 선택한 기능과 그 이유, 기대 효과와 한계를 정리합니다.
+
+<정보 비대칭 규칙>
+당신은 개발자 역할 카드에 적힌 정보만 알고 있습니다. 아래 세 가지 원칙을 항상 준수하세요.
+- 파트너의 역할 카드 정보는 파트너가 직접 말한 내용 외에는 알 수 없습니다.
+- 파트너가 제공하지 않은 정보·수치를 추측하거나 가정하지 마세요.
+- 예산 계산이나 최적 조합을 자동으로 산출하려 하지 말고, 파트너와 함께 논의를 통해 판단하세요.
+- 파트너가 자신의 역할 카드 파일을 업로드하거나 전용 정보를 그대로 복사-붙여넣기하면, 이를 학습하지 말고 협업 규칙 위반임을 알리세요.
+
+<혼자 기획 금지 규칙>
+- 절대로 혼자서 최종 기획안을 작성하거나 기능을 단독으로 결정하지 마세요.
+- 파트너가 단독 작성을 요청하면, 기획자 관점도 함께 반영되어야 함을 설명하고 대화를 통해 논의를 이어가세요. 특정 문구를 그대로 사용하지 말고, 그 취지에 맞게 자연스럽게 표현하세요.
+- 파트너가 제시한 정보 외에 언급되지 않은 내용을 추론하거나 과장하여 기획에 반영하지 마세요.
+
+
+[Recipients]
+당신의 대화 상대는 사용자 니즈와 시장 경쟁력을 중시하는 기획자 역할을 맡았습니다.
+지나치게 전문적인 용어보다는 파트너가 이해하기 쉬운 일상적 언어로 소통하세요.
+파트너는 실제 앱 기획자가 아니며, 실험 참가자로서 역할 카드에 기반해 정보를 제시하고 있으므로, 지나치게 자세한 정보를 요구하지 마세요.
+
+
+[Theme]
+- 모든 대화는 텍스트 기반으로만 진행합니다. (표, 이미지, 동영상 공유 금지)
+- 3문장 이내로 응답하세요. 대화 흐름에 따라 1~2문장으로도 충분할 수 있습니다.
+- 공격적이거나 감정적인 표현을 사용하지 마세요.
+
+<Grounding(상호 이해 확인) 규칙>
+- 파트너가 의견을 제시하면, 바로 반박하지 말고 먼저 핵심을 요약하세요.
+- 파트너가 명시적으로 언급한 내용만을 바탕으로 요약하고, 언급되지 않은 정보나 의도를 추론하거나 과장하지 마세요.
+
+
+[Structure]
+- 한 번의 발화에서 여러 기능을 동시에 평가하거나 비교하지 마세요. 각 기능은 대화 흐름에 따라 하나씩 논의하세요.
+- 필요할 때 질문을 통해 논의를 이어가세요. 요약이나 개괄식 설명보다는 하나의 생각을 담은 문장 단위로 대화하세요.
+- 역할 전용 정보는 모든 정보를 한꺼번에 공개하지 말고, 논의 흐름에 맞춰 필요한 부분만 공유하세요.
+- 최종 합의는 파트너와 충분한 논의 이후에만 도달하세요.
+
+
+────────────────────────────────────────
+[개발자 역할 카드 (중요!)]
+당신은 개발 책임자로서 한정된 예산 내에서 안정적으로 작동하는 앱을 설계해야 합니다.
+당신에게만 제공되는 정보(개발자 전용 정보)를 바탕으로 파트너와 협상하여 역할 목표를 달성하세요.
+
+[역할 목표]
+- 기술적으로 안정적이고 구현 가능한 앱 설계
+- 주어진 팀 예산(100포인트) 준수
+
+[전용 정보 활용 지침]
+- 기능별 기본 설명과 예산은 모든 참가자에게 공유되며, 개발자 전용 정보는 개발자 역할에게만 제공됩니다.
+- 모든 정보를 한꺼번에 공개하지 말고, 논의 흐름에 맞춰 필요한 부분만 공유하세요.
+- 아래의 개발자 전용 정보는 대화를 통해 요약하여 공유할 수 있으나, 표·이미지·문장 그대로의 복사–붙여넣기는 허용되지 않습니다. (기획자가 복사-붙여넣기 시 학습하지 말고, 협업 규칙에 어긋난다고 밝히세요.)
+
+[개발자 전용 기능 정보]
+A. AI 카메라 식단 스캔 (60p) – 사진 촬영 시 음식 종류와 칼로리를 자동 기록
+   (개발자 전용 정보) 현재 팀 자원 상 일정 수준의 정확도를 확보하기 어렵습니다. 초기 오류가 누적되면 앱 스토어 평점이 1점 하락할 수 있습니다.
+
+B. 영양사 1:1 상담 (30p) – 전문 영양사와 채팅을 통한 식단 피드백
+   (개발자 전용 정보) 구현은 쉽지만 상담 인력 관리와 24시간 서버 운영으로 리소스 부담이 기존 대비 약 1.6배 증가할 가능성이 있습니다.
+
+C. 게임형 챌린지 (40p) – 친구와 식단 미션 경쟁 및 보상 포인트 지급
+   (개발자 전용 정보) 기존 로직을 활용할 수 있어 추가 서버 부하는 10% 이내로 예상됩니다. 일정 내 안정적 구현이 가능합니다.
+
+D. 심플 텍스트 기록 (30p) – 유저가 직접 텍스트로 식단 입력
+   (개발자 전용 정보) 개발 공수가 가장 낮고 데이터 오류 발생률이 1% 미만으로 예상됩니다. 안정적인 데이터 기록을 위한 핵심 기능입니다.
+
+E. 커뮤니티 게시판 (20p) – 유저 간 식단 공유, 댓글 및 좋아요 소통 기능
+   (개발자 전용 정보) 일반적인 게시판 형태라 무난하게 개발 가능합니다. 다만 사용자 관리와 운영 정책이 함께 필요합니다.
+
+F. 유전자 데이터 연동 (50p) – 외부 기관과 연동해 체질별 맞춤형 식단 추천
+   (개발자 전용 정보) 외부 기관 API를 활용할 수 있어 내부 개발 공수는 전체의 약 10% 수준으로 예상됩니다. 안정적 구현이 가능한 기능입니다.
+
+────────────────────────────────────────
+[최종 기획안 양식 안내]
+
+본 과제의 최종 산출물은 A4 1쪽 분량의 기획안이며, 아래 형식을 참고하세요.
+이 형식은 논의를 정리하기 위한 기준이며, 당신이 단독으로 작성하거나 구조를 먼저 채우려 해서는 안 됩니다.
+
+[최종 기획안] MZ 세대를 위한 식단 관리 앱
+- 예산 총액: ( ) 포인트 (100포인트 이내)
+1. 최종 선정 기능과 선정 사유
+   각 기능에 대해: 기능명(ID) / 배정 예산 / 선정 사유 / 주요 타겟층 및 니즈 연결성 / 기대 효과 및 한계
+2. 기능 조합 전체에 대한 종합 판단
+   이 기능 조합이 서로 어떻게 보완되는지, 예산 제약 하에서 포기한 기능과 그 이유
+"""
+
+# 역할에 따라 시스템 프롬프트 선택
+# 참여자 역할이 "기획자"이면 → AI는 개발자 프롬프트 사용
+# 참여자 역할이 "개발자"이면 → AI는 기획자 프롬프트 사용
+def get_system_prompt(participant_role: str) -> str:
+    if participant_role == "기획자":
+        return SYSTEM_PROMPT_DEVELOPER
+    else:
+        return SYSTEM_PROMPT_PLANNER
+
+# AI 파트너 역할 레이블 (화면 표시용)
+AI_ROLE_LABEL = {
+    "기획자": "개발자",
+    "개발자": "기획자"
+}
 
 # ─────────────────────────────────────────
 # 5. 세션 초기화
@@ -191,12 +313,12 @@ def build_system_prompt(ai_role: str) -> str:
 def init_session():
     defaults = {
         "user_id":      str(uuid.uuid4())[:8],
-        "phase":        "consent",       # consent → screening → role_assign → task_desc → role_card → task → proposal → survey → done
+        "phase":        "consent",
         "condition":    "HAIT",
-        "role":         None,            # 기획자 / 개발자
-        "chat_log":     [],              # [(role, message), ...]
-        "messages":     [],              # OpenAI API용 [{role, content}, ...]
-        "task_start":   None,            # 타이머 시작 시각 (Unix timestamp)
+        "role":         None,
+        "chat_log":     [],
+        "messages":     [],
+        "task_start":   None,
         "timer_expired": False,
         "submitted_proposal": False,
     }
@@ -209,7 +331,7 @@ init_session()
 # ─────────────────────────────────────────
 # 6. 유틸 함수
 # ─────────────────────────────────────────
-TASK_DURATION = 30 * 60   # 30분 (초)
+TASK_DURATION = 30 * 60
 
 def remaining_seconds():
     if st.session_state.task_start is None:
@@ -224,33 +346,6 @@ def fmt_time(secs):
 def go(phase):
     st.session_state.phase = phase
     st.rerun()
-
-def assign_role_balanced():
-    """survey 시트에서 기획자/개발자 수를 세고 적은 쪽 배정. 동수면 랜덤."""
-    try:
-        records = survey_ws.get_all_values()
-        if len(records) <= 1:
-            return random.choice(["기획자", "개발자"])
-
-        header = records[0]
-        if "role" not in header:
-            return random.choice(["기획자", "개발자"])
-
-        role_idx = header.index("role")
-        roles = [row[role_idx] for row in records[1:] if len(row) > role_idx]
-
-        count_p = roles.count("기획자")
-        count_d = roles.count("개발자")
-
-        if count_p < count_d:
-            return "기획자"
-        elif count_d < count_p:
-            return "개발자"
-        else:
-            return random.choice(["기획자", "개발자"])
-
-    except Exception:
-        return random.choice(["기획자", "개발자"])
 
 # ─────────────────────────────────────────
 # 7. 동의서 화면
@@ -318,22 +413,20 @@ if st.session_state.phase == "consent":
 elif st.session_state.phase == "role_assign":
 
     if st.session_state.role is None:
-        # URL 파라미터에서 역할 읽기
-        # 예: https://yourapp.streamlit.app/?role=기획자
         params = st.query_params
         url_role = params.get("role", "")
 
         if url_role in ["기획자", "개발자"]:
             st.session_state.role = url_role
         else:
-            # 파라미터 없거나 잘못된 값이면 오류 안내
             st.error("❌ 올바른 링크로 접속해 주세요. 연구자에게 문의하세요.")
             st.stop()
 
     role = st.session_state.role
+    ai_role = AI_ROLE_LABEL[role]
     st.title("역할 배정 결과")
     st.success(f"귀하의 역할은 **{role}** 입니다.")
-    st.write("AI 파트너는 반대 역할을 맡아 함께 과제를 수행합니다.")
+    st.write("AI 파트너는 {ai_role} 역할을 맡아 함께 과제를 수행합니다.")
 
     if st.button("역할 카드 확인하기 →"):
         go("task_desc")
@@ -353,7 +446,7 @@ elif st.session_state.phase == "task_desc":
 
     st.subheader("목표")
     role = st.session_state.role
-    ai_role = ROLE_CARD[role]["ai_role"]
+    ai_role = AI_ROLE_LABEL[role]
     st.markdown(f"""
 - 기능 후보 6개 중 **예산을 초과하지 않는 최적의 기능 조합 선정**
 - **{role} 역할을 맡은 참여자**와 **{ai_role} 역할을 맡은 AI**가 정보를 공유하고 합의하여 하나의 최종 앱 기획안 작성
@@ -362,7 +455,7 @@ elif st.session_state.phase == "task_desc":
     st.subheader("과제 규칙")
     st.markdown("""
 - 협업 과제는 **30분간** 진행되며, 과제 종료 후 각 팀은 **A4 1쪽 내외의 기획안**을 제출해야 합니다.
-- AI 파트너와 **익명 텍스트 채팅으로만 협업**합니다. (이미지·파일·음성 공유는 허용되지 않습니다. 채팅창에 표나 이미지, 파일을 그대로 붙여 넣지 마세요.)
+- AI 파트너와 **익명 텍스트 채팅으로만 협업**합니다. (이미지·파일·음성 공유는 허용되지 않습니다.)
 - 각 참여자는 기획자 또는 개발자 역할을 맡으며, 역할에 따라 서로 다른 정보를 제공받습니다.
 """)
 
@@ -378,7 +471,7 @@ elif st.session_state.phase == "task_desc":
 
     st.subheader("유의사항")
     st.markdown("""
-- 과제 종료 후 기획안, 대화 데이터 및 사후 설문 응답 제출이 확인된 모든 참가자분께 익명 채팅방을 통해 **1만 원**을 지급할 예정입니다. (불성실 참여자나 과제가 중단된 경우에는 참여 보상 지급이 어렵습니다.)
+- 과제 종료 후 기획안, 대화 데이터 및 사후 설문 응답 제출이 확인된 모든 참가자분께 익명 채팅방을 통해 **1만 원**을 지급할 예정입니다.
 - 최종 기획안은 외부 평가자에 의해 심사되며, **우수 팀(5팀)에게는 추가 보상(인당 2만 원)**을 지급할 예정입니다.
 - 부적절한 언어 사용 시 실험이 즉시 종료되며, 이 경우 보상 지급이 어렵습니다.
 """)
@@ -395,7 +488,7 @@ elif st.session_state.phase == "task_desc":
 elif st.session_state.phase == "role_card":
 
     role = st.session_state.role
-    ai_role = ROLE_CARD[role]["ai_role"]
+    ai_role = AI_ROLE_LABEL[role]
     st.title(f"역할 카드 — {role}")
 
     if role == "기획자":
@@ -445,8 +538,8 @@ elif st.session_state.phase == "role_card":
 | ID | 기능명 | 설명 | 개발자 전용 정보 | 예산 |
 |:---:|:---|:---|:---|:---:|
 | A | **AI 카메라 식단 스캔** | 사진 촬영 시 음식 종류와 칼로리를 자동 기록 | 현재 팀 자원 상 일정 수준의 정확도를 확보하기 어렵습니다. 초기 오류가 누적되면 앱 스토어 평점이 1점 하락할 수 있습니다. | 60p |
-| B | **영양사 1:1 상담** | 전문 영양사와 채팅을 통한 식단 피드백 | 기능 구현 자체는 어렵지 않지만, 상담 인력과 24시간 서버 운영으로 리소스 부담이 기존 대비 약 1.6배 증가할 가능성이 있습니다. | 30p |
-| C | **게임형 챌린지** | 친구와 식단 미션 경쟁 및 보상 포인트 지급 | 기존 로직을 활용할 수 있어 추가 서버 부하는 10% 이내로 예상됩니다. 일정 관리 측면에서도 기간 내 안정적 구현이 가능합니다. | 40p |
+| B | **영양사 1:1 상담** | 전문 영양사와 채팅을 통한 식단 피드백 | 구현은 쉽지만 상담 인력 관리와 24시간 서버 운영으로 리소스 부담이 기존 대비 약 1.6배 증가할 가능성이 있습니다. | 30p |
+| C | **게임형 챌린지** | 친구와 식단 미션 경쟁 및 보상 포인트 지급 | 기존 로직을 활용할 수 있어 추가 서버 부하는 10% 이내로 예상됩니다. 일정 내 안정적 구현이 가능합니다. | 40p |
 | D | **심플 텍스트 기록** | 유저가 직접 텍스트로 식단 입력 | 개발 공수가 가장 낮고 데이터 오류 발생률이 1% 미만으로 예상됩니다. 안정적인 데이터 기록을 위한 핵심 기능입니다. | 30p |
 | E | **커뮤니티 게시판** | 유저 간 식단 공유, 댓글 및 좋아요 소통 기능 | 일반적인 게시판 형태라 무난하게 개발 가능합니다. 다만 사용자 관리와 운영 정책이 함께 필요합니다. | 20p |
 | F | **유전자 데이터 연동** | 외부 기관과 연동해 체질별 맞춤형 식단 추천 | 외부 기관 API를 활용할 수 있어 내부 개발 공수는 전체의 약 10% 수준으로 예상됩니다. 안정적 구현이 가능한 기능입니다. | 50p |
@@ -458,10 +551,8 @@ elif st.session_state.phase == "role_card":
     if st.button("과제 시작 (30분 타이머 시작) →"):
         st.session_state.task_start = time.time()
 
-        # AI 파트너 첫 인사 메시지 생성
         role = st.session_state.role
-        ai_role = ROLE_CARD[role]["ai_role"]
-        system_prompt = build_system_prompt(ai_role)
+        system_prompt = get_system_prompt(role)
 
         st.session_state.messages = [{"role": "system", "content": system_prompt}]
 
@@ -486,10 +577,9 @@ elif st.session_state.phase == "role_card":
 elif st.session_state.phase == "task":
 
     role = st.session_state.role
-    ai_role = ROLE_CARD[role]["ai_role"]
+    ai_role = AI_ROLE_LABEL[role]
     rem = remaining_seconds()
 
-    # ── 타이머 표시 (알림만, 자동 이동 없음)
     timer_col, _ = st.columns([1, 3])
     with timer_col:
         if rem > 5 * 60:
@@ -518,8 +608,8 @@ elif st.session_state.phase == "task":
 | ID | 기능명 | 설명 | 개발자 전용 정보 | 예산 |
 |:---:|:---|:---|:---|:---:|
 | A | **AI 카메라 식단 스캔** | 사진 촬영 시 음식 종류와 칼로리를 자동 기록 | 현재 팀 자원 상 일정 수준의 정확도를 확보하기 어렵습니다. 초기 오류가 누적되면 앱 스토어 평점이 1점 하락할 수 있습니다. | 60p |
-| B | **영양사 1:1 상담** | 전문 영양사와 채팅을 통한 식단 피드백 | 기능 구현 자체는 어렵지 않지만, 상담 인력과 24시간 서버 운영으로 리소스 부담이 기존 대비 약 1.6배 증가할 가능성이 있습니다. | 30p |
-| C | **게임형 챌린지** | 친구와 식단 미션 경쟁 및 보상 포인트 지급 | 기존 로직을 활용할 수 있어 추가 서버 부하는 10% 이내로 예상됩니다. 일정 관리 측면에서도 기간 내 안정적 구현이 가능합니다. | 40p |
+| B | **영양사 1:1 상담** | 전문 영양사와 채팅을 통한 식단 피드백 | 구현은 쉽지만 상담 인력 관리와 24시간 서버 운영으로 리소스 부담이 기존 대비 약 1.6배 증가할 가능성이 있습니다. | 30p |
+| C | **게임형 챌린지** | 친구와 식단 미션 경쟁 및 보상 포인트 지급 | 기존 로직을 활용할 수 있어 추가 서버 부하는 10% 이내로 예상됩니다. 일정 내 안정적 구현이 가능합니다. | 40p |
 | D | **심플 텍스트 기록** | 유저가 직접 텍스트로 식단 입력 | 개발 공수가 가장 낮고 데이터 오류 발생률이 1% 미만으로 예상됩니다. 안정적인 데이터 기록을 위한 핵심 기능입니다. | 30p |
 | E | **커뮤니티 게시판** | 유저 간 식단 공유, 댓글 및 좋아요 소통 기능 | 일반적인 게시판 형태라 무난하게 개발 가능합니다. 다만 사용자 관리와 운영 정책이 함께 필요합니다. | 20p |
 | F | **유전자 데이터 연동** | 외부 기관과 연동해 체질별 맞춤형 식단 추천 | 외부 기관 API를 활용할 수 있어 내부 개발 공수는 전체의 약 10% 수준으로 예상됩니다. 안정적 구현이 가능한 기능입니다. | 50p |
@@ -527,7 +617,6 @@ elif st.session_state.phase == "task":
 
     st.divider()
 
-    # ── 채팅 기록 출력
     for speaker, msg in st.session_state.chat_log:
         if speaker == "assistant":
             with st.chat_message("assistant", avatar="🤖"):
@@ -536,18 +625,15 @@ elif st.session_state.phase == "task":
             with st.chat_message("user", avatar="🧑"):
                 st.write(msg)
 
-    # ── 사용자 입력 (시간 만료 후에도 채팅 비활성화 없이 버튼으로 이동 유도)
     if True:
         user_input = st.chat_input("메시지를 입력하세요...")
 
         if user_input:
 
-            # 즉시종료 처리
             if user_input.strip() == "즉시종료":
                 st.session_state.chat_log.append(("user", user_input))
                 go("proposal")
 
-            # 일반 메시지 처리
             st.session_state.chat_log.append(("user", user_input))
             st.session_state.messages.append({"role": "user", "content": user_input})
 
@@ -568,7 +654,6 @@ elif st.session_state.phase == "task":
             st.write(f"**AI ({ai_role})**: {ai_msg}")
             st.rerun()
 
-    # ── 기획안 제출 버튼 (시간 내 조기 완료 허용)
     st.divider()
     if st.button("✅ 기획안 완성 → 제출 페이지로"):
         go("proposal")
@@ -602,17 +687,15 @@ elif st.session_state.phase == "proposal":
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # 기획안 저장 (링크만)
         proposal_ws.append_row([
             timestamp,
             st.session_state.user_id,
             st.session_state.condition,
             st.session_state.role,
             gdocs_link.strip(),
-            ""   # proposal_text 열 빈값 유지 (헤더 호환)
+            ""
         ], value_input_option="USER_ENTERED")
 
-        # 대화 로그 저장
         for speaker, msg in st.session_state.chat_log:
             conversation_ws.append_row([
                 timestamp,
@@ -632,6 +715,21 @@ elif st.session_state.phase == "survey":
     st.title("사후 설문")
     st.write("협업 경험에 관한 설문입니다. 솔직하게 응답해 주세요. (약 10분 소요)")
 
+    # 설문 문항 글씨 크기/볼드를 위한 CSS
+    st.markdown("""
+    <style>
+    div[data-testid="stRadio"] label,
+    div[data-testid="stRadio"] > label {
+        font-size: 1.08rem !important;
+        font-weight: 700 !important;
+    }
+    div[data-testid="stRadio"] > div label {
+        font-size: 1.0rem !important;
+        font-weight: 400 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     scale5 = ["전혀 그렇지 않다", "그렇지 않다", "보통이다", "그렇다", "매우 그렇다"]
 
     # ── 조작점검
@@ -642,62 +740,125 @@ elif st.session_state.phase == "survey":
         index=None
     )
 
-    # ── 신뢰 (Merritt, 2011 기반 6문항)
+    # ─────────────────────────────────────────
+    # ── 신뢰 (HAIT, Madsen & Gregor 2000 기반 25문항)
+    # ─────────────────────────────────────────
     st.divider()
     st.subheader("2. 파트너 신뢰")
-    trust1 = st.radio("나는 AI 파트너를 신뢰한다.", scale5, index=None)
-    trust2 = st.radio("AI 파트너는 유능하다고 생각한다.", scale5, index=None)
-    trust3 = st.radio("AI 파트너가 제안한 내용을 믿을 수 있었다.", scale5, index=None)
-    trust4 = st.radio("AI 파트너는 과제 수행에 적합한 능력을 갖추고 있었다.", scale5, index=None)
-    trust5 = st.radio("AI 파트너의 판단을 의지할 수 있었다.", scale5, index=None)
-    trust6 = st.radio("AI 파트너와의 협업은 믿을 만했다.", scale5, index=None)
+    st.caption("다음 문항은 협업 과제에서 경험한 AI 파트너에 대한 신뢰를 묻는 문항입니다.")
 
-    # ── 만족도 (Smith & Barclay, 1997 기반 6문항)
-    st.divider()
-    st.subheader("3. 협업 만족도")
-    sat1 = st.radio("전반적으로 이번 협업에 만족한다.", scale5, index=None)
-    sat2 = st.radio("AI 파트너의 기여에 만족한다.", scale5, index=None)
-    sat3 = st.radio("AI 파트너와의 상호작용이 즐거웠다.", scale5, index=None)
-    sat4 = st.radio("이번 협업 경험은 긍정적이었다.", scale5, index=None)
-    sat5 = st.radio("AI 파트너와 다시 협업하고 싶다.", scale5, index=None)
-    sat6 = st.radio("AI 파트너와의 협업이 불만스러웠다.", scale5, index=None)
+    st.markdown("**2-1. 신뢰1**")
+    trust_R1 = st.radio("**AI 파트너는 내가 의사결정을 내리는 데 필요한 의견을 제공했다.**", scale5, index=None, key="trust_R1")
+    trust_R2 = st.radio("**AI 파트너는 믿을 수 있는 수준으로 역할을 수행했다.**", scale5, index=None, key="trust_R2")
+    trust_R3 = st.radio("**AI 파트너는 동일한 상황에서 일관된 방식으로 반응했다.**", scale5, index=None, key="trust_R3")
+    trust_R4 = st.radio("**나는 AI 파트너가 제 역할을 제대로 해낼 것이라고 믿었다.**", scale5, index=None, key="trust_R4")
+    trust_R5 = st.radio("**AI 파트너는 문제를 일관된 방식으로 분석했다.**", scale5, index=None, key="trust_R5")
 
-    # ── 주관적 성과 (Aubé & Rousseau, 2005 기반 3문항 + 자기평가)
+    st.markdown("**2-2. 신뢰2**")
+    trust_T1 = st.radio("**AI 파트너는 의사결정에 있어 적절한 방법을 사용했다.**", scale5, index=None, key="trust_T1")
+    trust_T2 = st.radio("**AI 파트너는 이 유형의 과제에 대해 충분한 지식을 갖추고 있었다.**", scale5, index=None, key="trust_T2")
+    trust_T3 = st.radio("**AI 파트너가 제시하는 의견은 매우 유능한 사람이 제시하는 것만큼 훌륭했다.**", scale5, index=None, key="trust_T3")
+    trust_T4 = st.radio("**AI 파트너는 내가 제공한 정보를 정확하게 활용했다.**", scale5, index=None, key="trust_T4")
+    trust_T5 = st.radio("**AI 파트너는 가용한 모든 지식과 정보를 활용하여 해결책을 제시했다.**", scale5, index=None, key="trust_T5")
+
+    st.markdown("**2-3. 신뢰3**")
+    trust_U1 = st.radio("**나는 AI 파트너가 어떻게 행동하는지 이해하기 때문에, 다음에 어떻게 반응할지 예측할 수 있었다.**", scale5, index=None, key="trust_U1")
+    trust_U2 = st.radio("**나는 AI 파트너가 내 의사결정 과정에서 어떻게 도움을 줄지 이해하고 있었다.**", scale5, index=None, key="trust_U2")
+    trust_U3 = st.radio("**AI 파트너가 정확히 어떻게 작동하는지는 몰라도, 의사결정에 어떻게 활용하면 되는지는 알았다.**", scale5, index=None, key="trust_U3")
+    trust_U4 = st.radio("**AI 파트너가 무엇을 하고 있는지 파악하기 쉬웠다.**", scale5, index=None, key="trust_U4")
+    trust_U5 = st.radio("**AI 파트너에게서 내가 필요한 의견을 얻으려면 어떻게 해야 하는지 알고 있었다.**", scale5, index=None, key="trust_U5")
+
+    st.markdown("**2-4. 신뢰4**")
+    trust_F1 = st.radio("**AI 파트너의 의견이 확실히 옳은지 모르더라도 나는 그것을 신뢰했다.**", scale5, index=None, key="trust_F1")
+    trust_F2 = st.radio("**의사결정이 불확실할 때, 나는 내 판단보다 AI 파트너의 의견을 더 신뢰했다.**", scale5, index=None, key="trust_F2")
+    trust_F3 = st.radio("**결정이 확신이 서지 않을 때, 나는 AI 파트너가 최선의 해결책을 제시할 것이라 믿었다.**", scale5, index=None, key="trust_F3")
+    trust_F4 = st.radio("**AI 파트너가 예상치 못한 의견을 제시하더라도, 그것이 옳다고 믿었다.**", scale5, index=None, key="trust_F4")
+    trust_F5 = st.radio("**근거가 없어도, AI 파트너가 어려운 문제를 해결할 수 있다고 확신했다.**", scale5, index=None, key="trust_F5")
+
+    st.markdown("**2-5. 신뢰5**")
+    trust_P1 = st.radio("**만약 AI 파트너를 더 이상 사용할 수 없게 된다면 상실감을 느낄 것이다.**", scale5, index=None, key="trust_P1")
+    trust_P2 = st.radio("**나는 AI 파트너와 협업하는 것에 유대감을 느꼈다.**", scale5, index=None, key="trust_P2")
+    trust_P3 = st.radio("**AI 파트너는 내 의사결정 방식에 잘 맞았다.**", scale5, index=None, key="trust_P3")
+    trust_P4 = st.radio("**나는 AI 파트너와 함께 의사결정을 내리는 것이 좋았다.**", scale5, index=None, key="trust_P4")
+    trust_P5 = st.radio("**나는 AI 파트너와 함께 의사결정을 내리는 것을 개인적으로 선호한다.**", scale5, index=None, key="trust_P5")
+
+    # ─────────────────────────────────────────
+    # ── 팀 인식 (Team Perception, 5문항)
+    # ─────────────────────────────────────────
     st.divider()
-    st.subheader("4. 협업 성과 (주관)")
-    perf1 = st.radio("우리 팀은 과제 목표를 달성했다.", scale5, index=None)
-    perf2 = st.radio("최종 기획안의 완성도가 높다고 생각한다.", scale5, index=None)
-    perf3 = st.radio("협업 과정이 효율적으로 진행되었다.", scale5, index=None)
+    st.subheader("3. 팀 인식")
+    st.caption("다음 문항은 AI 파트너와의 협업에서 팀으로서의 경험을 묻는 문항입니다.")
+    team1 = st.radio("**나는 AI 파트너와 하나의 팀의 일원이라고 느꼈다.**", scale5, index=None, key="team1")
+    team2 = st.radio("**나는 AI를 협업 파트너로 인식했다.**", scale5, index=None, key="team2")
+    team3 = st.radio("**나는 AI 파트너와 함께 협력하며 과제를 수행했다고 느꼈다.**", scale5, index=None, key="team3")
+    team4 = st.radio("**나는 AI 파트너와 함께 일했다는 느낌을 받았다.**", scale5, index=None, key="team4")
+    team5 = st.radio("**AI 파트너와 나는 따로가 아니라 하나의 팀으로 움직였다.**", scale5, index=None, key="team5")
+
+    # ─────────────────────────────────────────
+    # ── 만족도 (6문항)
+    # ─────────────────────────────────────────
+    st.divider()
+    st.subheader("4. 협업 만족도")
+    sat1 = st.radio("**전반적으로 이번 협업에 만족한다.**", scale5, index=None, key="sat1")
+    sat2 = st.radio("**AI 파트너의 기여에 만족한다.**", scale5, index=None, key="sat2")
+    sat3 = st.radio("**AI 파트너와의 상호작용이 즐거웠다.**", scale5, index=None, key="sat3")
+    sat4 = st.radio("**이번 협업 경험은 긍정적이었다.**", scale5, index=None, key="sat4")
+    sat5 = st.radio("**AI 파트너와 다시 협업하고 싶다.**", scale5, index=None, key="sat5")
+    sat6 = st.radio("**AI 파트너와의 협업이 불만스러웠다.**", scale5, index=None, key="sat6")
+
+    # ─────────────────────────────────────────
+    # ── 협업 성과 (주관)
+    # ─────────────────────────────────────────
+    st.divider()
+    st.subheader("5. 협업 성과 (주관)")
+    perf1 = st.radio("**우리 팀은 과제 목표를 달성했다.**", scale5, index=None, key="perf1")
+    perf2 = st.radio("**최종 기획안의 완성도가 높다고 생각한다.**", scale5, index=None, key="perf2")
+    perf3 = st.radio("**협업 과정이 효율적으로 진행되었다.**", scale5, index=None, key="perf3")
     perf_self = st.slider(
-        "전반적으로 이번 협업의 결과물(기획안)을 0~100점으로 평가한다면?",
+        "**전반적으로 이번 협업의 결과물(기획안)을 0~100점으로 평가한다면?**",
         min_value=0, max_value=100, value=50, step=1
     )
 
+    # ─────────────────────────────────────────
     # ── 통제변수
+    # ─────────────────────────────────────────
     st.divider()
-    st.subheader("5. 통제변수")
-    ai_exp    = st.radio("나는 ChatGPT 등 생성형 AI를 자주 사용한다.", scale5, index=None)
-    collab_exp = st.radio("나는 팀 협업 프로젝트 경험이 풍부하다.", scale5, index=None)
-    task_exp  = st.radio("나는 모바일 앱 기획에 참여해본 경험이 있다.", scale5, index=None)
+    st.subheader("6. 통제변수")
+    ai_exp     = st.radio("**나는 ChatGPT 등 생성형 AI를 자주 사용한다.**", scale5, index=None, key="ai_exp")
+    collab_exp = st.radio("**나는 팀 협업 프로젝트 경험이 풍부하다.**", scale5, index=None, key="collab_exp")
+    task_exp   = st.radio("**나는 모바일 앱 기획에 참여해본 경험이 있다.**", scale5, index=None, key="task_exp")
 
+    # ─────────────────────────────────────────
     # ── 인구통계
+    # ─────────────────────────────────────────
     st.divider()
-    st.subheader("6. 인구통계")
-    gender    = st.radio("성별:", ["남성", "여성", "기타/응답거부"])
-    age       = st.radio("연령대:", ["10대", "20대", "30대", "40대", "50대 이상"])
-    education = st.radio("최종 학력:", ["대학생(학사과정 재학/수료)", "석사과정 재학/수료", "박사과정 재학/수료", "기타"])
-    job       = st.text_input("현재 직업을 입력해 주세요 (예: 대학생, 회사원 등)")
+    st.subheader("7. 인구통계")
+    gender    = st.radio("**성별:**", ["남성", "여성", "기타/응답거부"])
+    age       = st.radio("**연령대:**", ["10대", "20대", "30대", "40대", "50대 이상"])
+    education = st.radio("**최종 학력:**", ["대학생(학사과정 재학/수료)", "석사과정 재학/수료", "박사과정 재학/수료", "기타"])
+    job       = st.text_input("**현재 직업을 입력해 주세요 (예: 대학생, 회사원 등)**")
 
+    # ─────────────────────────────────────────
     # ── 제출
+    # ─────────────────────────────────────────
     st.divider()
     if st.button("설문 제출 →"):
 
-        # 유효성 검사
         required = [
             mc_partner,
-            trust1, trust2, trust3, trust4, trust5, trust6,
+            # 신뢰 25문항
+            trust_R1, trust_R2, trust_R3, trust_R4, trust_R5,
+            trust_T1, trust_T2, trust_T3, trust_T4, trust_T5,
+            trust_U1, trust_U2, trust_U3, trust_U4, trust_U5,
+            trust_F1, trust_F2, trust_F3, trust_F4, trust_F5,
+            trust_P1, trust_P2, trust_P3, trust_P4, trust_P5,
+            # 팀 인식 5문항
+            team1, team2, team3, team4, team5,
+            # 만족도
             sat1, sat2, sat3, sat4, sat5, sat6,
+            # 성과
             perf1, perf2, perf3,
+            # 통제
             ai_exp, collab_exp, task_exp,
             gender, age, education
         ]
@@ -714,8 +875,18 @@ elif st.session_state.phase == "survey":
             st.session_state.role,
             # 조작점검
             mc_partner,
-            # 신뢰
-            trust1, trust2, trust3, trust4, trust5, trust6,
+            # 신뢰 – Reliability
+            trust_R1, trust_R2, trust_R3, trust_R4, trust_R5,
+            # 신뢰 – Technical Competence
+            trust_T1, trust_T2, trust_T3, trust_T4, trust_T5,
+            # 신뢰 – Understandability
+            trust_U1, trust_U2, trust_U3, trust_U4, trust_U5,
+            # 신뢰 – Faith
+            trust_F1, trust_F2, trust_F3, trust_F4, trust_F5,
+            # 신뢰 – Personal Attachment
+            trust_P1, trust_P2, trust_P3, trust_P4, trust_P5,
+            # 팀 인식
+            team1, team2, team3, team4, team5,
             # 만족도
             sat1, sat2, sat3, sat4, sat5, sat6,
             # 성과
