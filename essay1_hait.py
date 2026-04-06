@@ -582,7 +582,7 @@ elif st.session_state.phase == "role_card":
 elif st.session_state.phase == "task":
 
     # 10초마다 자동 리렌더링 → 타이머 실시간 갱신
-    st_autorefresh(interval=10_000, key="task_autorefresh")
+    st_autorefresh(interval=1_000, key="task_autorefresh")
 
     role = st.session_state.role
     ai_role = AI_ROLE_LABEL[role]
