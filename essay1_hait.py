@@ -426,7 +426,7 @@ elif st.session_state.phase == "role_assign":
     ai_role = AI_ROLE_LABEL[role]
     st.title("역할 배정 결과")
     st.success(f"귀하의 역할은 **{role}** 입니다.")
-    st.write("AI 파트너는 {ai_role} 역할을 맡아 함께 과제를 수행합니다.")
+    st.write(f"AI 파트너는 {ai_role} 역할을 맡아 함께 과제를 수행합니다.")
 
     if st.button("역할 카드 확인하기 →"):
         go("task_desc")
