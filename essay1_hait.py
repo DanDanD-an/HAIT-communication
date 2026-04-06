@@ -659,15 +659,14 @@ elif st.session_state.phase == "task":
             with st.chat_message("user", avatar="🧑"):
                 st.write(user_input)
 
-            with st.spinner("AI 파트너 응답 중..."):
-                resp = client.chat.completions.create(
-                    model="gpt-4o",
-                    temperature=0.7,
-                    messages=st.session_state.messages
-                )
-                ai_msg = resp.choices[0].message.content.strip()
-
             with st.chat_message("assistant", avatar="🤖"):
+                with st.spinner("AI 파트너 응답 중..."):
+                    resp = client.chat.completions.create(
+                        model="gpt-4o",
+                        temperature=0.7,
+                        messages=st.session_state.messages
+                    )
+                ai_msg = resp.choices[0].message.content.strip()
                 st.write(f"**AI ({ai_role})**: {ai_msg}")
 
             st.session_state.messages.append({"role": "assistant", "content": ai_msg})
@@ -779,35 +778,35 @@ elif st.session_state.phase == "survey":
     st.subheader("2. 파트너 신뢰")
     st.caption("다음 문항은 협업 과제에서 경험한 AI 파트너에 대한 신뢰를 묻는 문항입니다.")
 
-    st.markdown("<br>", unsafe_allow_html=True)  
+    st.markdown("**2-1. 지각된 신뢰성 (Perceived Reliability)**")
     trust_R1 = st.radio("**AI 파트너는 내가 의사결정을 내리는 데 필요한 의견을 제공했다.**", scale5, index=None, key="trust_R1")
     trust_R2 = st.radio("**AI 파트너는 믿을 수 있는 수준으로 역할을 수행했다.**", scale5, index=None, key="trust_R2")
     trust_R3 = st.radio("**AI 파트너는 동일한 상황에서 일관된 방식으로 반응했다.**", scale5, index=None, key="trust_R3")
     trust_R4 = st.radio("**나는 AI 파트너가 제 역할을 제대로 해낼 것이라고 믿었다.**", scale5, index=None, key="trust_R4")
     trust_R5 = st.radio("**AI 파트너는 문제를 일관된 방식으로 분석했다.**", scale5, index=None, key="trust_R5")
 
-    st.markdown("<br>", unsafe_allow_html=True)  
+    st.markdown("**2-2. 지각된 기술적 역량 (Perceived Technical Competence)**")
     trust_T1 = st.radio("**AI 파트너는 의사결정에 있어 적절한 방법을 사용했다.**", scale5, index=None, key="trust_T1")
     trust_T2 = st.radio("**AI 파트너는 이 유형의 과제에 대해 충분한 지식을 갖추고 있었다.**", scale5, index=None, key="trust_T2")
     trust_T3 = st.radio("**AI 파트너가 제시하는 의견은 매우 유능한 사람이 제시하는 것만큼 훌륭했다.**", scale5, index=None, key="trust_T3")
     trust_T4 = st.radio("**AI 파트너는 내가 제공한 정보를 정확하게 활용했다.**", scale5, index=None, key="trust_T4")
     trust_T5 = st.radio("**AI 파트너는 가용한 모든 지식과 정보를 활용하여 해결책을 제시했다.**", scale5, index=None, key="trust_T5")
 
-    st.markdown("<br>", unsafe_allow_html=True)  
+    st.markdown("**2-3. 지각된 이해가능성 (Perceived Understandability)**")
     trust_U1 = st.radio("**나는 AI 파트너가 어떻게 행동하는지 이해하기 때문에, 다음에 어떻게 반응할지 예측할 수 있었다.**", scale5, index=None, key="trust_U1")
     trust_U2 = st.radio("**나는 AI 파트너가 내 의사결정 과정에서 어떻게 도움을 줄지 이해하고 있었다.**", scale5, index=None, key="trust_U2")
     trust_U3 = st.radio("**AI 파트너가 정확히 어떻게 작동하는지는 몰라도, 의사결정에 어떻게 활용하면 되는지는 알았다.**", scale5, index=None, key="trust_U3")
     trust_U4 = st.radio("**AI 파트너가 무엇을 하고 있는지 파악하기 쉬웠다.**", scale5, index=None, key="trust_U4")
     trust_U5 = st.radio("**AI 파트너에게서 내가 필요한 의견을 얻으려면 어떻게 해야 하는지 알고 있었다.**", scale5, index=None, key="trust_U5")
     
-    st.markdown("<br>", unsafe_allow_html=True)  
+    st.markdown("**2-4. 믿음 (Faith)**")
     trust_F1 = st.radio("**AI 파트너의 의견이 확실히 옳은지 모르더라도 나는 그것을 신뢰했다.**", scale5, index=None, key="trust_F1")
     trust_F2 = st.radio("**의사결정이 불확실할 때, 나는 내 판단보다 AI 파트너의 의견을 더 신뢰했다.**", scale5, index=None, key="trust_F2")
     trust_F3 = st.radio("**결정이 확신이 서지 않을 때, 나는 AI 파트너가 최선의 해결책을 제시할 것이라 믿었다.**", scale5, index=None, key="trust_F3")
     trust_F4 = st.radio("**AI 파트너가 예상치 못한 의견을 제시하더라도, 그것이 옳다고 믿었다.**", scale5, index=None, key="trust_F4")
     trust_F5 = st.radio("**근거가 없어도, AI 파트너가 어려운 문제를 해결할 수 있다고 확신했다.**", scale5, index=None, key="trust_F5")
 
-    st.markdown("<br>", unsafe_allow_html=True)  
+    st.markdown("**2-5. 개인적 친밀감 (Personal Attachment)**")
     trust_P1 = st.radio("**만약 AI 파트너를 더 이상 사용할 수 없게 된다면 상실감을 느낄 것이다.**", scale5, index=None, key="trust_P1")
     trust_P2 = st.radio("**나는 AI 파트너와 협업하는 것에 유대감을 느꼈다.**", scale5, index=None, key="trust_P2")
     trust_P3 = st.radio("**AI 파트너는 내 의사결정 방식에 잘 맞았다.**", scale5, index=None, key="trust_P3")
