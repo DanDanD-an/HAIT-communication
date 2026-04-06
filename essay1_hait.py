@@ -908,7 +908,7 @@ elif st.session_state.phase == "survey":
             # 성과
             perf1, perf2, perf3,
         ]
-        if any(v is None for v in required) or not job.strip():
+        if any(v is None for v in required):
             st.error("⚠️ 응답하지 않은 항목이 있습니다. 모든 항목을 체크해야 제출할 수 있습니다.")
             st.stop()
 
