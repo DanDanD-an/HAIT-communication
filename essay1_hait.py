@@ -75,6 +75,8 @@ insert_headers_if_empty(survey_ws, [
     "sat1","sat2","sat3","sat4","sat5","sat6",
     # 성과 – 주관 (3문항 + 자기평가)
     "perf1","perf2","perf3","perf_self",
+    # 토픽 민감도
+    "topic_sensitivity",
 ])
 
 insert_headers_if_empty(conversation_ws, [
@@ -924,6 +926,17 @@ elif st.session_state.phase == "survey":
     )
 
     # ─────────────────────────────────────────
+    # ── 토픽 민감도
+    # ─────────────────────────────────────────
+    st.divider()
+    st.subheader("6. 토픽 민감도")
+    topic_sensitivity = st.radio(
+        "**귀하는 식단 관리나 다이어트에 얼마나 관심이 있으십니까?**",
+        ["전혀 관심 없다", "별로 관심 없다", "보통이다", "약간 관심 있다", "매우 관심 있다"],
+        index=None, key="topic_sensitivity"
+    )
+
+    # ─────────────────────────────────────────
     # ── 제출
     # ─────────────────────────────────────────
     st.divider()
@@ -943,6 +956,8 @@ elif st.session_state.phase == "survey":
             sat1, sat2, sat3, sat4, sat5, sat6,
             # 성과
             perf1, perf2, perf3,
+            # 토픽 민감도
+            topic_sensitivity,
         ]
         if any(v is None for v in required):
             st.error("⚠️ 응답하지 않은 항목이 있습니다. 모든 항목을 체크해야 제출할 수 있습니다.")
@@ -973,6 +988,8 @@ elif st.session_state.phase == "survey":
             sat1, sat2, sat3, sat4, sat5, sat6,
             # 성과
             perf1, perf2, perf3, perf_self,
+            # 토픽 민감도
+            topic_sensitivity,
         ], value_input_option="USER_ENTERED")
 
         go("done")
