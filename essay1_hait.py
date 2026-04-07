@@ -41,61 +41,71 @@ survey_ws, conversation_ws, proposal_ws, consent_ws = connect_sheets()
 # ─────────────────────────────────────────
 # 2. 헤더 자동 삽입
 # ─────────────────────────────────────────
-def insert_headers_if_empty(worksheet, headers):
-    key = f"header_checked_{worksheet.title}"
-    if key not in st.session_state:
-        try:
-            first_cell = worksheet.get("A1")
-            if not first_cell:
-                worksheet.append_row(headers)
-            st.session_state[key] = True
-        except Exception as e:
-            if "429" in str(e):
-                time.sleep(2)
-            else:
-                st.error(f"헤더 오류: {e}")
+@st.cache_resource
+def ensure_headers(_survey_ws, _conversation_ws, _proposal_ws, _consent_ws):
+    """앱 전체에서 딱 1번만 실행 — autorefresh/다중 세션 무관"""
+    def _check(ws, headers):
+        for attempt in range(3):
+            try:
+                if not ws.get("A1"):
+                    ws.append_row(headers)
+                return
+            except Exception:
+                if attempt < 2:
+                    time.sleep(3)
+    _check(_survey_ws, [
+        "timestamp", "user_id", "condition", "role",
+        "mc_partner_type",
+        "trust_R1","trust_R2","trust_R3","trust_R4","trust_R5",
+        "trust_T1","trust_T2","trust_T3","trust_T4","trust_T5",
+        "trust_U1","trust_U2","trust_U3","trust_U4","trust_U5",
+        "trust_F1","trust_F2","trust_F3","trust_F4","trust_F5",
+        "trust_P1","trust_P2","trust_P3","trust_P4","trust_P5",
+        "team1","team2","team3","team4","team5",
+        "sat1","sat2","sat3","sat4","sat5","sat6",
+        "perf1","perf2","perf3","perf_self",
+        "topic_sensitivity","kakao_id",
+    ])
+    _check(_conversation_ws, ["timestamp","user_id","role","message"])
+    _check(_proposal_ws, ["timestamp","user_id","condition","role","gdocs_link","proposal_text"])
+    _check(_consent_ws, ["consent_timestamp","user_id","agreement"])
 
-insert_headers_if_empty(survey_ws, [
-    "timestamp", "user_id", "condition", "role",
-    # 조작점검
-    "mc_partner_type",
-    # 신뢰 – Perceived Reliability (5문항)
-    "trust_R1","trust_R2","trust_R3","trust_R4","trust_R5",
-    # 신뢰 – Perceived Technical Competence (5문항)
-    "trust_T1","trust_T2","trust_T3","trust_T4","trust_T5",
-    # 신뢰 – Perceived Understandability (5문항)
-    "trust_U1","trust_U2","trust_U3","trust_U4","trust_U5",
-    # 신뢰 – Faith (5문항)
-    "trust_F1","trust_F2","trust_F3","trust_F4","trust_F5",
-    # 신뢰 – Personal Attachment (5문항)
-    "trust_P1","trust_P2","trust_P3","trust_P4","trust_P5",
-    # 팀 인식 (5문항)
-    "team1","team2","team3","team4","team5",
-    # 만족도 (6문항)
-    "sat1","sat2","sat3","sat4","sat5","sat6",
-    # 성과 – 주관 (3문항 + 자기평가)
-    "perf1","perf2","perf3","perf_self",
-    # 토픽 민감도
-    "topic_sensitivity",
-])
-
-insert_headers_if_empty(conversation_ws, [
-    "timestamp", "user_id", "role", "message"
-])
-
-insert_headers_if_empty(proposal_ws, [
-    "timestamp", "user_id", "condition", "role",
-    "gdocs_link", "proposal_text"
-])
-
-insert_headers_if_empty(consent_ws, [
-    "consent_timestamp", "user_id", "agreement"
-])
+ensure_headers(survey_ws, conversation_ws, proposal_ws, consent_ws)
 
 # ─────────────────────────────────────────
 # 3. OpenAI 클라이언트
 # ─────────────────────────────────────────
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+def sheets_append(ws, row):
+    """Google Sheets 안전 쓰기 — 429 시 최대 3회 재시도"""
+    for attempt in range(4):
+        try:
+            ws.append_row(row, value_input_option="USER_ENTERED")
+            return
+        except Exception as e:
+            if "429" in str(e) and attempt < 3:
+                time.sleep(3 * (attempt + 1))
+            else:
+                return
+
+def call_openai_with_retry(messages, retries=3, wait=5):
+    """OpenAI 호출 — Rate Limit 시 최대 3회 재시도"""
+    for i in range(retries):
+        try:
+            resp = client.chat.completions.create(
+                model="gpt-4o",
+                temperature=0.7,
+                messages=messages
+            )
+            return resp.choices[0].message.content.strip()
+        except Exception as e:
+            if any(k in str(e).lower() for k in ["rate_limit","rate limit","429","timeout"]):
+                if i < retries - 1:
+                    time.sleep(wait)
+                    continue
+            st.error(f"AI 응답 오류: {e}")
+            return None
 
 
 
@@ -431,19 +441,11 @@ if st.session_state.phase == "consent":
         consent_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         if agree == " 연구 참여에 동의하지 않습니다.":
-            consent_ws.append_row([
-                consent_timestamp,
-                st.session_state.user_id,
-                "비동의"
-            ], value_input_option="USER_ENTERED")
+            sheets_append(consent_ws, [consent_timestamp, st.session_state.user_id, "비동의"])
             st.warning("연구 참여에 동의하지 않으셨습니다. 참여해 주셔서 감사합니다.")
             st.stop()
 
-        consent_ws.append_row([
-            consent_timestamp,
-            st.session_state.user_id,
-            "동의"
-        ], value_input_option="USER_ENTERED")
+        sheets_append(consent_ws, [consent_timestamp, st.session_state.user_id, "동의"])
         go("role_assign")
 
 # ─────────────────────────────────────────
@@ -603,12 +605,9 @@ elif st.session_state.phase == "role_card":
         st.session_state.messages.append({"role": "user", "content": opening_user_msg})
 
         with st.spinner("AI 파트너 연결 중..."):
-            resp = client.chat.completions.create(
-                model="gpt-4o",
-                temperature=0.7,
-                messages=st.session_state.messages
-            )
-        ai_greeting = resp.choices[0].message.content.strip()
+            ai_greeting = call_openai_with_retry(st.session_state.messages)
+        if ai_greeting is None:
+            st.stop()
         st.session_state.messages.append({"role": "assistant", "content": ai_greeting})
         st.session_state.chat_log.append(("assistant", ai_greeting))
 
@@ -719,43 +718,32 @@ elif st.session_state.phase == "task":
 
             # 실시간 저장 - 사용자 메시지
             try:
-                conversation_ws.append_row([
-                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    st.session_state.user_id,
-                    "user",
-                    user_input
-                ], value_input_option="USER_ENTERED")
+                sheets_append(conversation_ws, [datetime.now().strftime("%Y-%m-%d %H:%M:%S"), st.session_state.user_id, "user", user_input])
             except Exception:
                 pass
 
             with st.chat_message("user", avatar="🧑"):
                 st.write(user_input)
 
-            with st.chat_message("assistant", avatar="🤖"):
-                with st.spinner("AI 파트너 응답 중..."):
-                    resp = client.chat.completions.create(
-                        model="gpt-4o",
-                        temperature=0.7,
-                        messages=st.session_state.messages
-                    )
-                ai_msg = resp.choices[0].message.content.strip()
-                st.write(f"**AI ({ai_role})**: {ai_msg}")
+            with st.spinner("AI 파트너 응답 중..."):
+                ai_msg = call_openai_with_retry(st.session_state.messages)
 
-            st.session_state.messages.append({"role": "assistant", "content": ai_msg})
-            st.session_state.chat_log.append(("assistant", ai_msg))
+            if ai_msg is None:
+                st.warning("AI 응답에 실패했습니다. 잠시 후 다시 시도해 주세요.")
+            else:
+                with st.chat_message("assistant", avatar="🤖"):
+                    st.write(f"**AI ({ai_role})**: {ai_msg}")
 
-            # 실시간 저장 - AI 메시지
-            try:
-                conversation_ws.append_row([
-                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    st.session_state.user_id,
-                    "assistant",
-                    ai_msg
-                ], value_input_option="USER_ENTERED")
-            except Exception:
-                pass
+                st.session_state.messages.append({"role": "assistant", "content": ai_msg})
+                st.session_state.chat_log.append(("assistant", ai_msg))
 
-            st.rerun()
+                # 실시간 저장 - AI 메시지
+                try:
+                    sheets_append(conversation_ws, [datetime.now().strftime("%Y-%m-%d %H:%M:%S"), st.session_state.user_id, "assistant", ai_msg])
+                except Exception:
+                    pass
+
+                st.rerun()
 
     st.divider()
     if st.button("✅ 기획안 완성 → 제출 페이지로"):
@@ -793,22 +781,10 @@ elif st.session_state.phase == "proposal":
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        proposal_ws.append_row([
-            timestamp,
-            st.session_state.user_id,
-            st.session_state.condition,
-            st.session_state.role,
-            gdocs_link.strip(),
-            ""
-        ], value_input_option="USER_ENTERED")
+        sheets_append(proposal_ws, [timestamp, st.session_state.user_id, st.session_state.condition, st.session_state.role, gdocs_link.strip(), ""])
 
         for speaker, msg in st.session_state.chat_log:
-            conversation_ws.append_row([
-                timestamp,
-                st.session_state.user_id,
-                speaker,
-                msg
-            ], value_input_option="USER_ENTERED")
+            sheets_append(conversation_ws, [timestamp, st.session_state.user_id, speaker, msg])
 
         st.session_state.submitted_proposal = True
         go("survey")
@@ -820,6 +796,13 @@ elif st.session_state.phase == "survey":
 
     st.title("사후 설문")
     st.write("협업 경험에 관한 설문입니다. 솔직하게 응답해 주세요. (약 10분 소요)")
+
+    st.divider()
+    st.subheader("📌 보상 지급 정보")
+    kakao_id = st.text_input(
+        "**카카오톡 아이디를 입력해 주세요.** (보상 지급에 사용됩니다)",
+        placeholder="카카오톡 아이디 입력"
+    )
 
     # 설문 문항 글씨 크기/볼드를 위한 CSS
     st.markdown("""
@@ -959,13 +942,13 @@ elif st.session_state.phase == "survey":
             # 토픽 민감도
             topic_sensitivity,
         ]
-        if any(v is None for v in required):
-            st.error("⚠️ 응답하지 않은 항목이 있습니다. 모든 항목을 체크해야 제출할 수 있습니다.")
+        if any(v is None for v in required) or not kakao_id.strip():
+            st.error("⚠️ 응답하지 않은 항목이 있습니다. 카카오톡 아이디와 모든 항목을 입력해야 제출할 수 있습니다.")
             st.stop()
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        survey_ws.append_row([
+        sheets_append(survey_ws, [
             timestamp,
             st.session_state.user_id,
             st.session_state.condition,
@@ -990,7 +973,9 @@ elif st.session_state.phase == "survey":
             perf1, perf2, perf3, perf_self,
             # 토픽 민감도
             topic_sensitivity,
-        ], value_input_option="USER_ENTERED")
+            # 카카오톡 아이디
+            kakao_id.strip(),
+        ])
 
         go("done")
 
