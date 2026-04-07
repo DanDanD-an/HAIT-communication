@@ -507,7 +507,7 @@ elif st.session_state.phase == "task_desc":
 2. 최종 선정 기능과 선정 사유
 3. 기대효과와 한계
 
-제공되는 템플릿 링크(Google Docs)에 작성해 주시면 됩니다.
+카카오톡을 통해 제공되는 템플릿 링크(Google Docs)에 작성해 주시면 됩니다.
 """)
     st.markdown("<br>", unsafe_allow_html=True)
     st.subheader("유의사항")
@@ -785,9 +785,7 @@ elif st.session_state.phase == "proposal":
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         sheets_append(proposal_ws, [timestamp, st.session_state.user_id, st.session_state.condition, st.session_state.role, gdocs_link.strip(), ""])
-
-        for speaker, msg in st.session_state.chat_log:
-            sheets_append(conversation_ws, [timestamp, st.session_state.user_id, speaker, msg])
+        # 대화 로그는 실시간으로 이미 저장되므로 일괄 재저장 불필요
 
         st.session_state.submitted_proposal = True
         go("survey")
@@ -863,7 +861,7 @@ elif st.session_state.phase == "survey":
     st.markdown("<br>", unsafe_allow_html=True)
     trust_F1 = st.radio("**AI 파트너의 의견이 확실히 옳은지 모르더라도 나는 그것을 신뢰했다.**", scale5, index=None, key="trust_F1")
     trust_F2 = st.radio("**의사결정이 어려울 때, 나는 내 판단보다 AI 파트너의 의견을 더 신뢰했다.**", scale5, index=None, key="trust_F2")
-    trust_F3 = st.radio("**결정이 확신이 서지 않을 때, 나는 AI 파트너가 최선의 해결책을 제시할 것이라 믿었다.**", scale5, index=None, key="trust_F3")
+    trust_F3 = st.radio("**결정에 확신이 서지 않을 때, 나는 AI 파트너가 최선의 해결책을 제시할 것이라 믿었다.**", scale5, index=None, key="trust_F3")
     trust_F4 = st.radio("**AI 파트너가 예상치 못한 의견을 제시하더라도, 그것이 옳다고 믿었다.**", scale5, index=None, key="trust_F4")
     trust_F5 = st.radio("**근거가 없어도, AI 파트너가 어려운 문제를 해결할 수 있다고 확신했다.**", scale5, index=None, key="trust_F5")
 
@@ -993,7 +991,7 @@ elif st.session_state.phase == "done":
 **참여자 ID**: `{st.session_state.user_id}`  
 (보상 지급을 위해 위의 참여자 ID를 연구자 카카오톡으로 제출해 주세요.)
 
-참여 보상(1만 원)은 연구팀에서 데이터 확인 후, 카카오톡을 통해 지급해 드릴 예정입니다.
+참여 보상은 연구팀에서 데이터 확인 후, 카카오톡을 통해 지급해 드릴 예정입니다.
 문의사항은 아래 이메일 또는 카카오톡으로 연락해 주세요.
 
 📧 연구자: 노단 (고려대학교 박사과정) | dandandan1002@gmail.com | 카카오톡 ID: dandan_dan
