@@ -1008,5 +1008,5 @@ elif st.session_state.phase == "done":
 참여 보상(1만 원)은 연구팀에서 데이터 확인 후, 카카오톡을 통해 지급해 드릴 예정입니다.
 문의사항은 아래 이메일 또는 카카오톡으로 연락해 주세요.
 
-📧 연구자: 노단 (고려대학교 미디어학과) | dandandan1002@gmail.com | 카카오톡 ID: dandan_dan
+📧 연구자: 노단 (고려대학교 박사과정) | dandandan1002@gmail.com | 카카오톡 ID: dandan_dan
 """)
