@@ -88,9 +88,10 @@ def sheets_append(ws, row):
             else:
                 return
 
-def call_openai_with_retry(messages, retries=3, wait=5):
-    """OpenAI 호출 — Rate Limit 시 최대 3회 재시도"""
+def call_openai_with_retry(messages, retries=5, wait=8):
+    """OpenAI 호출 — Rate Limit 시 최대 5회 재시도"""
     msgs = list(messages)
+    last_error = None
     for i in range(retries):
         try:
             resp = client.chat.completions.create(
@@ -100,20 +101,24 @@ def call_openai_with_retry(messages, retries=3, wait=5):
             )
             return resp.choices[0].message.content.strip()
         except Exception as e:
+            last_error = e
             err = str(e).lower()
-            # Rate Limit → 재시도
-            if any(k in err for k in ["rate_limit", "rate limit", "429", "timeout"]):
-                if i < retries - 1:
-                    st.toast(f"⏳ AI 응답 지연 중... ({i+1}/{retries}회 재시도)")
-                    time.sleep(wait)
-                    continue
             # 컨텍스트 초과 → 오래된 메시지 제거 후 재시도
             if "context_length" in err or "maximum context" in err:
                 if len(msgs) > 4:
                     msgs = [msgs[0]] + msgs[-4:]
-                    continue
+                continue
+            # Rate Limit / Timeout → 대기 후 재시도 (대기 시간 점진적 증가)
+            if any(k in err for k in ["rate_limit", "rate limit", "429", "timeout", "overloaded"]):
+                wait_time = wait * (i + 1)  # 8초, 16초, 24초, 32초, 40초
+                st.warning(f"⏳ AI 응답 대기 중... ({i+1}/{retries}회 재시도, {wait_time}초 후 재시도)")
+                time.sleep(wait_time)
+                continue
+            # 그 외 에러 → 즉시 표시
             st.error(f"AI 응답 오류 ({type(e).__name__}): {e}")
             return None
+    # 모든 재시도 실패
+    st.error(f"⚠️ AI가 응답하지 않습니다. 잠시 후 다시 메시지를 보내주세요. (오류: {last_error})")
     return None
 
 
