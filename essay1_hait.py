@@ -91,21 +91,31 @@ def sheets_append(ws, row):
 
 def call_openai_with_retry(messages, retries=3, wait=5):
     """OpenAI 호출 — Rate Limit 시 최대 3회 재시도"""
+    msgs = list(messages)
     for i in range(retries):
         try:
             resp = client.chat.completions.create(
                 model="gpt-4o",
                 temperature=0.7,
-                messages=messages
+                messages=msgs
             )
             return resp.choices[0].message.content.strip()
         except Exception as e:
-            if any(k in str(e).lower() for k in ["rate_limit","rate limit","429","timeout"]):
+            err = str(e).lower()
+            # Rate Limit → 재시도
+            if any(k in err for k in ["rate_limit", "rate limit", "429", "timeout"]):
                 if i < retries - 1:
+                    st.toast(f"⏳ AI 응답 지연 중... ({i+1}/{retries}회 재시도)")
                     time.sleep(wait)
                     continue
-            st.error(f"AI 응답 오류: {e}")
+            # 컨텍스트 초과 → 오래된 메시지 제거 후 재시도
+            if "context_length" in err or "maximum context" in err:
+                if len(msgs) > 4:
+                    msgs = [msgs[0]] + msgs[-4:]
+                    continue
+            st.error(f"AI 응답 오류 ({type(e).__name__}): {e}")
             return None
+    return None
 
 
 
@@ -712,6 +722,7 @@ elif st.session_state.phase == "task":
             if user_input.strip() == "즉시종료":
                 st.session_state.chat_log.append(("user", user_input))
                 go("proposal")
+                st.stop()
 
             st.session_state.chat_log.append(("user", user_input))
             st.session_state.messages.append({"role": "user", "content": user_input})
@@ -725,25 +736,25 @@ elif st.session_state.phase == "task":
             with st.chat_message("user", avatar="🧑"):
                 st.write(user_input)
 
+            # AI 호출 — spinner 안에서만 호출하고 결과는 session_state에 저장
             with st.spinner("AI 파트너 응답 중..."):
                 ai_msg = call_openai_with_retry(st.session_state.messages)
 
             if ai_msg is None:
                 st.warning("AI 응답에 실패했습니다. 잠시 후 다시 시도해 주세요.")
-            else:
-                with st.chat_message("assistant", avatar="🤖"):
-                    st.write(f"**AI ({ai_role})**: {ai_msg}")
+                st.stop()
 
-                st.session_state.messages.append({"role": "assistant", "content": ai_msg})
-                st.session_state.chat_log.append(("assistant", ai_msg))
+            # session_state에 먼저 저장 → rerun 후 chat_log 루프에서 표시
+            st.session_state.messages.append({"role": "assistant", "content": ai_msg})
+            st.session_state.chat_log.append(("assistant", ai_msg))
 
-                # 실시간 저장 - AI 메시지
-                try:
-                    sheets_append(conversation_ws, [datetime.now().strftime("%Y-%m-%d %H:%M:%S"), st.session_state.user_id, "assistant", ai_msg])
-                except Exception:
-                    pass
+            # 실시간 저장 - AI 메시지
+            try:
+                sheets_append(conversation_ws, [datetime.now().strftime("%Y-%m-%d %H:%M:%S"), st.session_state.user_id, "assistant", ai_msg])
+            except Exception:
+                pass
 
-                st.rerun()
+            st.rerun()
 
     st.divider()
     st.info("📌 해당 페이지를 벗어나면 채팅 내용의 확인이 불가합니다. 기획안을 모두 작성한 상태에서 제출 버튼을 눌러주세요.")
@@ -989,7 +1000,7 @@ elif st.session_state.phase == "done":
     st.success("설문까지 모두 완료하셨습니다. 참여해주셔서 감사합니다! 🙇‍♀️")
     st.markdown(f"""
 **참여자 ID**: `{st.session_state.user_id}`  
-(보상 지급을 위해 위의 참여자 ID를 연구자 카카오톡으로 제출해 주세요.)
+💵 보상 지급을 위해 위의 참여자 ID를 연구자 카카오톡으로 제출해 주세요.
 
 참여 보상은 연구팀에서 데이터 확인 후, 카카오톡을 통해 지급해 드릴 예정입니다.
 문의사항은 아래 이메일 또는 카카오톡으로 연락해 주세요.
