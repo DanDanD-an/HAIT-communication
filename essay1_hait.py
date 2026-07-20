@@ -713,8 +713,11 @@ elif st.session_state.phase == "task":
             with st.chat_message("user", avatar="🧑"):
                 st.write(msg)
 
-    if True:
+    if rem > 0:
         user_input = st.chat_input("메시지를 입력하세요...")
+    else:
+        st.chat_input("메시지를 입력하세요...", disabled=True)
+        user_input = None
 
         if user_input:
 
