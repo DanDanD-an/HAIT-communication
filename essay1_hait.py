@@ -625,7 +625,9 @@ elif st.session_state.phase == "role_card":
 # 11. 협업 과제 (채팅)
 # ─────────────────────────────────────────
 elif st.session_state.phase == "task":
-
+    rem = remaining_seconds()
+    st.write(f"DEBUG rem: {rem}, task_start: {st.session_state.task_start}")
+    
     # AI 응답 대기 중에는 autorefresh 끔 (rerun으로 응답이 날아가는 것 방지)
     if not st.session_state.get("waiting_ai", False):
         st_autorefresh(interval=10_000, key="task_autorefresh")
